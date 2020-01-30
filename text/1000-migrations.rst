@@ -48,7 +48,7 @@ In the database, the migrations are recorded as ``sys::Migration`` objects::
         property script -> array<str>;
     }
 
-The recommended way define the EdgeDB schema is via SDL files that are
+The recommended way to define the EdgeDB schema is via SDL files that are
 committed into the repository of a project that uses EdgeDB.  The canonical
 location for the schema files is the ``dbschema/`` directory in the project's
 root folder.
@@ -70,7 +70,7 @@ from ``dbschema/migrations/``, but can also be used to migrate to a specified
 point in the migration history, possibly reversing migrations that have already
 been applied.
 
-The ``edgedb migration-status`` command is used to show the current migration
+The ``edgedb show-status`` command is used to show the current migration
 state: whether all recorded migrations have been applied on the server, and
 whether there are untracked changes in the local schema that require a
 new migration.
