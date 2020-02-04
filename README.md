@@ -1,6 +1,7 @@
 # EdgeDB RFCs
 
 The purpose of this repository is to track *substantial* changes to EdgeDB.
+To read more on when and how to submit an RFC document, see RFC 1.
 
 ## License
 
