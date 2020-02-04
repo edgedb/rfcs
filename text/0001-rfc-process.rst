@@ -61,7 +61,7 @@ with zeroes if necessary, followed by a lowercase
 `slug <https://docs.djangoproject.com/en/3.0/glossary/#term-slug>`_.
 
 Lines in RFC documents should be wrapped at 72 characters.  Lines are
-ended with Unix-style LF (``0x0A``) newline characters.
+ended with Unix-style newline characters.
 
 Required Sections
 -----------------
