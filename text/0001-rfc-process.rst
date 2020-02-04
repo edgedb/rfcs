@@ -1,8 +1,8 @@
 ..
     Status: Draft
     Type: Process
-    Created: 2020-02-28
-    RFC PR: `edgedb/rfcs#0001 <https://github.com/edgedb/rfcs/pull/1>`_
+    Created: 2020-02-04
+    RFC PR: `edgedb/rfcs#0003 <https://github.com/edgedb/rfcs/pull/3>`_
 
 =========================
 RFC 0001: The RFC Process
@@ -88,7 +88,7 @@ Required Sections
    to ensure both the PEP author as well as all readers are aware of the
    consequences of the change.
 
-5. An extensive discussion of **rejected alternative ideas**.  This
+6. An extensive discussion of **rejected alternative ideas**.  This
    covers both large-scale alternative approaches to the problem, as
    well as rejected details of implementation of the approach that the
    RFC is proposing.  The summary of a rejected idea should be presented
