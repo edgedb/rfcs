@@ -1,7 +1,8 @@
-..
-    Status: Draft
+::
+    Status: Active
     Type: Process
     Created: 2020-02-04
+    Authors: Łukasz Langa <lukasz@edgedb.com>
     RFC PR: `edgedb/rfcs#0003 <https://github.com/edgedb/rfcs/pull/3>`_
 
 =========================
@@ -61,7 +62,10 @@ with zeroes if necessary, followed by a lowercase
 `slug <https://docs.djangoproject.com/en/3.0/glossary/#term-slug>`_.
 
 Lines in RFC documents should be wrapped at 72 characters.  Lines are
-ended with Unix-style newline characters.
+ended with Unix-style newline characters.  Trailing whitespace should
+be removed from all lines.  The last line should end with a newline
+character.  You can use the ``.editorconfig`` file in this repository
+to help you with those requirements.
 
 Required Sections
 -----------------
@@ -149,7 +153,7 @@ Avoid choosing "cute" arbitrary numbers for RFCs.
 
 The RFC should have a main champion, typically the author, who is
 responsible for moving the discussion forward, as well as gathering and
-documenting community and core developer feedback.  Having a quick 
+documenting community and core developer feedback.  Having a quick
 feedback loop and an up-to-date RFC document is very helpful.
 
 It's okay if no core developers are co-authors on a given RFC.  In this
@@ -210,16 +214,3 @@ editing the deferred or rejected RFC can be opened.
 
 Failure to get proper buy-in beforehand will likely result in immediate
 rejection of a pull request on a deferred or rejected RFC.
-
-
-Open Issues
-===========
-
-* RFC 1000 does not list an author.  Is that deliberate?  We'd like to
-  have a pointer to allow contacting the author in the future.
-
-* This RFC should have an example image attachment to allow for easy
-  copypasta for future authors.
-
-* Do we want licensing information to be present as a "Copyright"
-  section on every RFC?
