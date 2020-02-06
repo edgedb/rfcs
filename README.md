@@ -3,6 +3,15 @@
 The purpose of this repository is to track *substantial* changes to EdgeDB.
 To read more on when and how to submit an RFC document, see RFC 1.
 
+## List of RFCs
+[//]: # "NOTE: This section is auto-generated with update_index.py"
+
+### Current Drafts
+* [RFC 1000 - Migrations](./text/1000-migrations.rst)
+
+### Accepted
+* [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
+
 ## License
 
 Licensed under either of
