@@ -49,7 +49,7 @@ class RFC:
             for line in file:
                 line = line.rstrip()
                 if sm[0] == "before_preamble":
-                    if line == "Metadata::":
+                    if line == "::":
                         sm.pop(0)
                 elif sm[0] == "in_preamble":
                     if m := HEADER_FIELD.match(line):
