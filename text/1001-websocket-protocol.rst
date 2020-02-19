@@ -2,6 +2,7 @@
     Status: Draft
     Type: Feature
     Created: 2020-02-19
+    RFC PR: `edgedb/rfcs#4 <https://github.com/edgedb/rfcs/pull/4>`_
 
 ======================================
 RFC 0001: The WebSocket-based Protocol
