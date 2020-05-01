@@ -1,0 +1,298 @@
+..
+    Status: Draft
+    Type: Feature
+    Created: 2020-04-29
+    RFC PR: `edgedb/rfcs#0007 <https://github.com/edgedb/rfcs/pull/7>`_
+
+=================================================================
+RFC 1001: CLI for installation and control of local EdgeDB server
+=================================================================
+
+This RFC describes the design of the ``edgedb`` CLI subcommand for the
+purposes of installation, update and control of a local EdgeDB server.
+
+
+Motivation
+==========
+
+Currently, the tasks of installing, updating and running an EdgeDB server
+instances are entirely manual and vary a lot across the supported platforms.
+From the standpoint of local development this creates unnecessary friction
+and opens lots of possibilities for user error.  The current state also
+necessiates a non-trivial amount of documentation that new users must read.
+
+By implementing the installation, update, and control logic into the ``edgedb``
+CLI we can significantly simplify the process of getting started with EdgeDB
+without leaving the familiar development process:
+
+1. Download the ``edgedb`` binary via the most convenient channel
+   (`npm`, `pip`, `curl`).
+2. Use the downloaded ``edgedb`` binary to either install and initialize
+   a local server, or configure a remote server instance for development.
+
+
+Overview
+========
+
+The RFC proposes a new group of ``edgedb`` CLI commands under ``edgedb server``
+prefix:
+
+* ``edgedb server install`` -- install or update a specific version of the
+  EdgeDB server on the local machine;
+
+* ``edgedb server uninstall`` -- uninstall a specific version of the
+  EdgeDB server or all versions of EdgeDB from the local machine;
+
+* ``edgedb server start`` -- starts an EdgeDB server instance;
+
+* ``edgedb server status`` -- show the status of the local EdgeDB server;
+
+* ``edgedb server stop`` -- stop the given EdgeDB server instance;
+
+* ``edgedb server upgrade`` -- upgrade the specified EdgeDB server instance
+  to the new major version.
+
+* ``edgedb server prune`` -- removes upgrade backups and other unused data.
+
+Common aspects of the implementation of the above commands is discussed
+below in `design-considerations`_.
+
+
+edgedb server install
+=====================
+
+Downloads and installs a given EdgeDB server version
+(latest stable by default).
+
+Arguments
+---------
+
+``--version=<ver>``
+  specifies the major version of the server to install.
+
+``--nightly``
+  if passed, the latest nightly build from the specified version channel
+  is installed.
+
+``--user``
+  install into the user home directory instead of system-wide, does not
+  require privelege elevation (TODO: this requires relocatable
+  builds and is TBD).
+
+``--list``
+  list EdgeDB versions available for installation
+
+``--list-installed``
+  list installed EdgeDB versions
+
+``--update``
+  if specified, ``edgedb install`` will only attempt to update the existing
+  installations.
+
+``--docker``
+  Use Docker instead of downloading and installing packages directly onto
+  the user's system.  The Docker daemon must be present and accessible by
+  the user.
+
+
+Implementation
+--------------
+
+By default, ``edgedb install`` will look for the most suitable package for
+the current platform and install it using the system's package manager
+if one is available, or download and unpack a generic package for the
+OS/arch, or use Docker if avalable (and requested).
+
+
+edgedb server uninstall
+=======================
+
+Uninstalls the specified version of EdgeDB.
+
+Synopsis
+--------
+
+``edgedb server uninstall [options]``
+
+If there are multiple versions installed, either ``--all`` or
+``--version`` or ``--unused`` is required.
+
+Options
+-------
+
+``--version=<ver>``
+  Specifies the version to uninstall.  The specified server version must
+  not be currently running.
+
+``--all``
+  Uninstalls all versions of EdgeDB.
+
+``--unused``
+  Uninstalls all versions of EdgeDB that are not used in any instance.
+
+
+edgedb server start
+===================
+
+Starts an EdgeDB server instance with the specified name.
+
+Synopsis
+--------
+
+``edgedb server start [options] [<name>]``
+
+Options
+-------
+
+``<name>``
+  The name of the EdgeDB instance.  Must be unique.  If not specified,
+  the name ``default`` is used.
+
+``--version=<ver>``
+  Optionally specifies the server version to use.  If not specified,
+  the latest installed server version is used.
+
+``--start-conf=auto|manual``
+  If set to ``auto`` (the default), the server will be started automatically
+  on system boot.
+
+``--port=<port-number>``
+  Optionally specifies the port number on which the server should listen.
+
+``--system``
+  By default, ``edgedb server start`` runs the server in the user scope,
+  if ``--system`` is specified, it is started as a system-wide service
+  instead.
+
+``--server-options -- <options>``
+  Passes ``edgedb-server`` options verbatim.  Must be the last argument.
+
+
+edgedb server status
+====================
+
+Shows the status of the specified server instance or all instances.
+
+Synopsis
+--------
+
+``edgedb server status [options] [<name>]``
+
+Options
+-------
+
+``<name>``
+  The name of the EdgeDB instance.  If not specified, the name
+  ``default`` is used.
+
+``--all``
+  Show the status of all known instances.
+
+Implementation
+--------------
+
+The command outputs the state of the server instance
+(``running`` or ``stopped``), the port number it is configured to run on,
+the scope of the instance (system-wide or user-local), and the runtime under
+which the server is running (docker or native).
+
+
+edgedb server stop
+==================
+
+Stops the specified EdgeDB server instance.
+
+Synopsis
+--------
+
+``edgedb server stop [options] [<name>]``
+
+Options
+-------
+
+``<name>``
+  The name of the EdgeDB instance.  If not specified, the name
+  ``default`` is used.
+
+
+edgedb server upgrade
+=====================
+
+Upgrades the specified EdgeDB server instance to a given EdgeDB version.
+
+Synopsis
+--------
+
+``edgedb server upgrade [options] [<name>]``
+
+Options
+-------
+
+``<name>``
+  The name of the EdgeDB instance.  If not specified, the name
+  ``default`` is used.
+
+``--version``
+  Specifies the version of EdgeDB to upgrade to.  If not specified,
+  the latest available installed version is used.
+
+``--nightly``
+  Upgrade to a nightly release.
+
+``--allow-downgrade``
+  Allow downgrading to an older version.  Downgrades are prohibited by
+  default.
+
+``--revert``
+  Revert the upgrade if the original data directory has not been removed.
+
+Implementation
+--------------
+
+This command:
+
+* starts a temporary instance of the new EdgeDB server
+* pipes data from the old server with `dump`/`restore`
+* stops both servers, renames the data directories and restarts the new server.
+
+This keeps the original data directory in case ``--revert`` is requested.
+
+
+edgedb server prune
+===================
+
+Removes upgrade backups.
+
+Synopsis
+--------
+
+``edgedb server prune [options]``
+
+Options
+-------
+
+``--upgrade-backups``
+  Prune upgrade backups.  After this ``edgedb server upgrade --revert``
+  will be impossible.
+
+
+.. _design-considerations:
+
+Design Considerations
+=====================
+
+Instance names
+--------------
+
+Most commands described above refer to EdgeDB server instances by name.
+The simplest interpretation is that the instance name is just the name
+of a data directory folder in a well-known location.  For system instances
+(created with ``edgedb server start --system``) this would be
+directories under ``/var/lib/edgedb/data/``.  For user instances, this
+would be directories under ``$XDG_DATA_HOME/edgedb/data/``.  In both
+situations the base directory location for data should be configurable.
+
+The set of instance names is unique, and in situations where a system
+instance is created with the same name as an existing user instance,
+the user instance "masks" the system instance.  ``edgedb server status``
+should tell if an instance is system-wide or user-local.
