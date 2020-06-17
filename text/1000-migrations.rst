@@ -41,8 +41,8 @@ the necessary transformations using DDL and, possibly, regular queries.
 In the database, the migrations are recorded as ``sys::Migration`` objects::
 
     type sys::Migration {
-        # Migration hash derived from contents and parent hashes.
-        required property hash -> str {
+        # Migration name derived from the hash of contents and parent name.
+        required property name -> str {
             constraint exclusive;
         };
         # Migration description.
@@ -86,11 +86,41 @@ Migration History
 
 The migration history is defined as a linear sequence of migrations (although
 this might change in the future to support merging migration histories).
-Each migration has a unique identifier that is a hash derived from the token
-stream of the migration script and the hash of the migration parent.  The
-hashes are computed by the ``edgedb migrate`` command starting from the
-latest committed migration (if any).  It is an error to amend an
-already-committed migration.
+Each migration has a unique name that is a hash derived from the token
+stream of the migration script and the migration parent name.  To
+make migration names valid identifiers the hash is prefixed with letter
+``'m'``.
+
+The names of the migrations are computed by the ``edgedb migrate`` command
+starting from the latest committed migration (if any), using the following
+algorithm:
+
+1. Get the latest migration id from the database.
+2. Scans all files in the migrations dir and finds a file that references
+   that parent.
+3. If there's no such file --- terminate: there's no in-progress migration.
+4. if there's one such file and it has the largest sequential file name --
+   then there's only one in-progress migration file, so it is committed.
+5. If there's a file with that parent and other files after it it means
+   that we have a few in-progress (not yet committed) migration files.
+   The parent names in them are fluid -- generated and present in the file,
+   but aren't yet in the database.
+   Scenarios:
+   a) A user has two in-progress migration files: 0004.edgeql and 0005.edgeql.
+      If the user modifies 0004.edgeql and runs edgedb migration commit, we
+      compute the name for 0004 and commit it; we then update the parent name
+      in 0005 and commit it too.
+   b) A user has two in-progress migration files: 0004.edgeql and 0005.edgeql.
+      If the user modifies 0005.edgeql and runs edgedb migration commit,
+      we first commit the 0004, validate that 0005 has the correct parent
+      name, and if needed we fix it. We also compute it's new name, and then
+      commit 00005.
+
+If the tool detects that any of the already-committed migrations have been
+altered, it should issue an error and abort.  This RFC makes no special
+provision as to the recovery from this situation.  The user will either
+have to revert the migration file alteration, or reset the migration history
+with ``RESET SCHEMA``.
 
 
 Migration File Format
@@ -102,12 +132,12 @@ this RFC is defined as follows.
 Each migration is stored in a separate file.  Files are named using a
 simple monotonic decimal counter ('00001.edgeql', '00002.edgeql', etc).
 The contents of the file is the body of the migration and must be valid
-EdgeQL.  Migration hashsum, the hashsum of the parent migration, the
+EdgeQL.  Migration name, the name of the parent migration, the
 migration description message and other potential metadata are recorded
 in a comment block at the top of the file:
 
-    # migration: <migration-hash>
-    # parent: <parent-migration-hash>
+    # migration: <migration-name>
+    # parent: <parent-migration-name>
     #
     # Migration Title
     #
