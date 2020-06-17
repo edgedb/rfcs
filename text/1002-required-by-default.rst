@@ -31,37 +31,37 @@ Implementation
 ==============
 
 Since the discussion always applies to properties and links, we're referring
-to them simply as *fields* below.
+to them simply as *pointers* below.
 
 Assume REQUIRED qualifiers when no explicit qualifier is provided
 -----------------------------------------------------------------
 
-The main advantage of assuming that all fields are required unless otherwise
+The main advantage of assuming that all pointers are required unless otherwise
 specified is its resilience to migration into optionality later. Client code
 that was forced to provide values before will continue working and there are
 no incompatible empty sets in the database prior to the migration.
 
 An extreme form of optionality everywhere is equivalent to the database
-not having a true schema. Unless it's necessary to make a field optional,
-forcing fields to be required ensures that whenever data *can* be specified,
+not having a true schema. Unless it's necessary to make a pointer optional,
+forcing pointers to be required ensures that whenever data *can* be specified,
 it won't be forgotten at INSERT or UPDATE time.
 
-Required fields simplify type information. There's two particular problems
+Required pointers simplify type information. There's two particular problems
 on the client side with unexpected optionality:
 
 * lack of handling for that special case in user code, and
 
 * surprising effects of EdgeQL queries that omit objects with unexpected
-  empty sets in fields used in the query.
+  empty sets in pointers used in the query.
 
 Downsides
 ~~~~~~~~~
 
 * The main disadvantage at time of writing is that the current behavior as of
-  EdgeDB v1.0a3 is the opposite: fields without an explicit qualifier are
+  EdgeDB v1.0a3 is the opposite: pointers without an explicit qualifier are
   assumed optional. This poses a migration challenge.
 
-* Required fields have to be always specified at INSERT time and often
+* Required pointers have to be always specified at INSERT time and often
   specified at UPDATE time, making queries more verbose to write and data
   more costly to send over the wire. This can be dealt with by providing
   default values with SET DEFAULT which is a form of optionality with an
@@ -88,7 +88,7 @@ Assume OPTIONAL qualifiers when no explicit qualifier is provided
 
 This is the current behavior.
 
-An optional field is a form of incomplete data that allows the application
+An optional pointer is a form of incomplete data that allows the application
 to flexibly decide how to proceed. If the data is there, fine. If it isn't,
 the application can include user-level code to deal with that.
 
@@ -100,20 +100,20 @@ HTML form fields are optional by default.
 Downsides
 ~~~~~~~~~
 
-Developers might be failing to fill fields at INSERT time due
+Developers might be failing to fill pointers at INSERT time due
 to forgetfulness at query creation time, even if the data could be
 provided. They might be harder to fill at a later stage.
 
 Optionality is a special case that the user code has to deal with. Empty sets
 in queries might leave to unexpected results, i.e. missing objects. An empty
 set is a special case of a default value. A better default might be possible
-for a given field.
+for a given pointer.
 
 Assuming optionality makes it harder for the user to change their mind later,
-i.e. alter a field to become required:
+i.e. alter a pointer to become required:
 
 1. there might already be objects in the database with an empty set in
-   the given field; and
+   the given pointer; and
 2. client code written to insert data to the database or update data in
    it might become invalid if it depended on the optionality.
 
@@ -121,7 +121,7 @@ The former issue may be addressed with a data migration prior to the
 schema migration.  The latter problem is out of scope for EdgeDB but
 can be handled by migrating client code *first*.  If the clients aren't
 under the database administrator's control, a reasonable choice in this
-case is to abort the attempt to make a field required.
+case is to abort the attempt to make a pointer required.
 
 Do not provide a default optionality qualifier
 ----------------------------------------------
@@ -132,7 +132,7 @@ required more typing from the user.
 More importantly, despite the usability sacrifice, this approach would solve
 the issue only partially. It is still perfectly possible for the user to
 choose the wrong qualifier initially, for instance by making the wrong
-assumption about a given field, or by blindly copying it from somewhere else.
+assumption about a given pointer, or by blindly copying it from somewhere else.
 
 
 Migration
@@ -151,7 +151,7 @@ in the face of a change to implicit REQUIRED, user code does not expect
 this.
 
 For user safety, EdgeDB would need an intermediate release that forces all
-field definitions to specify qualifiers explicitly. Since there is little
+pointer definitions to specify qualifiers explicitly. Since there is little
 adoption of the product so far, this might not be a big problem.
 
 
