@@ -103,8 +103,13 @@ CREATE MIGRATION
 
 Synopsis::
 
-    CREATE MIGRATION [ <id> ] [ FROM <parent-id> ] "{"
-        { SET MESSAGE <message> | <subcommand> }
+    CREATE MIGRATION "{"
+        {
+            SET message := <message>
+            | SET id := <id>
+            | SET parent_id := <parent_id>
+            | <subcommand>
+        }
         [...]
     "}" ;
 
@@ -130,7 +135,7 @@ START MIGRATION
 
 Synopsis::
 
-    START MIGRATION [ <id> ] [ FROM <parent-id> ] TO "{"
+    START MIGRATION TO "{"
         <sdl-declaration> ;
     "}" ;
 
@@ -139,10 +144,9 @@ The ``START MIGRATION`` statement starts a *migration block*, where the
 an SDL declaration.  A transaction is started if none is running already,
 otherwise the statement creates a transaction savepoint.  In either case
 the migration block is either committed successfully, or not at all.
-Migration ``<id>`` may be specified explicitly, and is generated otherwise.
-Similarly to ``CREATE MIGRATION``, ``<parent-id>``, if specified, must refer
-to the latest committed migration.  The ``<parent-id>`` is verified again
-when ``COMMIT MIGRATION`` is ran to ensure that the migration is still valid.
+``START MIGRATION`` records the id of the latest committed migration
+as ``parent-id``, which is verified again when ``COMMIT MIGRATION`` is ran
+to ensure that the migration is still valid.
 
 While the migration block is active:
 
