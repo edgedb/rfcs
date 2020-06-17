@@ -40,6 +40,10 @@ the necessary transformations using DDL and, possibly, regular queries.
 In the database, the migrations are recorded as ``sys::Migration`` objects::
 
     type sys::Migration {
+        # Migration hash derived from contents and parent hashes.
+        required property hash -> str {
+            constraint exclusive;
+        };
         # Migration description.
         property message -> str;
         # Parent migrations.
@@ -74,6 +78,41 @@ The ``edgedb show-status`` command is used to show the current migration
 state: whether all recorded migrations have been applied on the server, and
 whether there are untracked changes in the local schema that require a
 new migration.
+
+
+Migration History
+=================
+
+The migration history is defined as a linear sequence of migrations (although
+this might change in the future to support merging migration histories).
+Each migration has a unique identifier that is a hash derived from the token
+stream of the migration script and the hash of the migration parent.  The
+hashes are computed by the ``edgedb migrate`` command starting from the
+latest committed migration (if any).  It is an error to amend an
+already-committed migration.
+
+
+Migration File Format
+=====================
+
+The file format and layout used by the suite of CLI commands described in
+this RFC is defined as follows.
+
+Each migration is stored in a separate file.  Files are named using a
+simple monotonic decimal counter ('00001.edgeql', '00002.edgeql', etc).
+The contents of the file is the body of the migration and must be valid
+EdgeQL.  Migration hashsum, the hashsum of the parent migration, the
+migration description message and other potential metadata are recorded
+in a comment block at the top of the file:
+
+    # migration: <migration-hash>
+    # parent: <parent-migration-hash>
+    #
+    # Migration Title
+    #
+    # Migration message (remainder of the comment)
+
+    EdgeQL text...
 
 
 Implementation
