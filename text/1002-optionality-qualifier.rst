@@ -47,9 +47,10 @@ intuitively acceptable: since the cardinality allows for any number of
 elements, a state with an empty set is not surprising.
 
 Plenty of examples of existing databases and RPC systems assume optionality
-by default. Protocol buffers removed support for required fields altogether
-in version 3. JSON-based NoSQL databases like MongoDB assume optionality.
-HTML form fields are optional by default.
+by default. Relational databases assume optionality unless a NOT NULL
+constraint is passed. Protocol buffers removed support for required fields
+altogether in version 3. JSON-based NoSQL databases like MongoDB assume
+optionality. HTML form fields are optional by default.
 
 Promoting an optional field into a required field doesn't create silent
 failures in pre-existing queries.
