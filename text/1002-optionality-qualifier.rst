@@ -1,5 +1,5 @@
 ..
-    Status: Draft
+    Status: Final
     Type: Guideline
     Created: 2020-06-17
     RFC PR: `edgedb/rfcs#0001 <https://github.com/edgedb/rfcs/pull/1>`_
