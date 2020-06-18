@@ -54,6 +54,10 @@ on the client side with unexpected optionality:
 * surprising effects of EdgeQL queries that omit objects with unexpected
   empty sets in pointers used in the query.
 
+Since many pointers in real-world schemas will be declared as OPTIONAL
+regardless of the default so the downsides of optionality won't be
+solved by using REQUIRED as the default qualifier.
+
 Downsides
 ~~~~~~~~~
 
@@ -61,11 +65,11 @@ Downsides
   EdgeDB v1.0a3 is the opposite: pointers without an explicit qualifier are
   assumed optional. This poses a migration challenge.
 
-* Required pointers have to be always specified at INSERT time and often
-  specified at UPDATE time, making queries more verbose to write and data
-  more costly to send over the wire. This can be dealt with by providing
-  default values with SET DEFAULT which is a form of optionality with an
-  explicit fallback value which doesn't fall outside of the declared type.
+* Required pointers have to be always specified at INSERT time, making
+  queries more verbose to write and data more costly to send over the wire.
+  This can be dealt with by providing default values with SET DEFAULT which
+  is a form of optionality with an explicit fallback value which doesn't fall
+  outside of the declared type.
 
 * Thrift documentation explains that "required is forever". What they mean
   by this is that required fields have to be provided by the caller, say a
@@ -91,6 +95,10 @@ This is the current behavior.
 An optional pointer is a form of incomplete data that allows the application
 to flexibly decide how to proceed. If the data is there, fine. If it isn't,
 the application can include user-level code to deal with that.
+
+Moreover, multi properties and multi links make the case of an empty set
+intuitively acceptable: since the cardinality allows for any number of
+elements, a state with an empty set is not surprising.
 
 Plenty of examples of existing databases and RPC systems assume optionality
 by default. Protocol buffers removed support for required fields altogether
