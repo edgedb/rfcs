@@ -9,16 +9,15 @@ import pathlib
 import re
 
 
-if TYPE_CHECKING:
-    Status = Literal[
-        "active",
-        "inactive",
-        "final",
-        "accepted",
-        "rejected",
-        "deferred",
-        "draft",
-    ]
+Status = Literal[
+    "active",
+    "inactive",
+    "final",
+    "accepted",
+    "rejected",
+    "deferred",
+    "draft",
+]
 
 
 CURRENT_DIR: Final = pathlib.Path(__file__).parent
