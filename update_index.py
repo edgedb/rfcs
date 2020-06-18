@@ -47,6 +47,7 @@ class RFC:
 
         states = [
             "before_preamble",
+            "in_empty_line",
             "in_preamble",
             "before_title",
             "after_title",
@@ -55,7 +56,10 @@ class RFC:
             for line in file:
                 line = line.rstrip()
                 if states[0] == "before_preamble":
-                    if line == "..":
+                    if line == "::":
+                        states.pop(0)
+                elif states[0] == "in_empty_line":
+                    if not line:
                         states.pop(0)
                 elif states[0] == "in_preamble":
                     if m := HEADER_FIELD.match(line):
