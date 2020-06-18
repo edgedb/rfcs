@@ -50,7 +50,7 @@ Plenty of examples of existing databases and RPC systems assume optionality
 by default. Relational databases assume optionality unless a NOT NULL
 constraint is passed. Protocol buffers removed support for required fields
 altogether in version 3. JSON-based NoSQL databases like MongoDB assume
-optionality. HTML form fields are optional by default.
+optionality.
 
 Promoting an optional field into a required field doesn't create silent
 failures in pre-existing queries.
@@ -134,18 +134,6 @@ never to encounter empty sets now will.  Most of the time this will be
 harmless but some queries that are analytical in nature will now fail to
 return objects with empty pointers, which might lead to bugs in user code.
 
-Thrift documentation explains that "required is forever". What they mean
-by this is that required fields have to be provided by the caller, say a
-mobile device. Changing a required field into an optional field requires
-for the database to be updated first before any application code can use
-this capability. While this is a valid concern for RPC systems where new
-clients won't be able to connect to old servers, in the case of central
-databases, the most popular deployment scheme already is to migrate the
-database first. The central base is an easier target to control. It's true
-that there's a risk that this ordering will not be kept if the schema
-definition files are shared between teams responsible for backend and
-frontend code.
-
 Migration challenge
 ~~~~~~~~~~~~~~~~~~~
 
@@ -182,6 +170,19 @@ Other observations
 
 A database is not a peer-to-peer RPC platform
 ---------------------------------------------
+
+Thrift documentation explains that "required is forever". What they mean by
+this is that required fields have to be provided by the caller, say a mobile
+device. Changing a required field into an optional field requires for the RPC
+server to be updated first before any RPC client code can use this
+capability.
+
+While this is a valid concern for RPC systems where new clients won't be able
+to connect to old servers, in the case of central databases, the most popular
+deployment scheme already is to migrate the database first. The central base
+is an easier target to control. It's true that there's a risk that this
+ordering will not be kept if the schema definition files are shared between
+teams responsible for backend and frontend code.
 
 The concerns listed by maintainers of protocol buffers and Thrift don't
 seem like they apply to a database which is set up as a central API layer
