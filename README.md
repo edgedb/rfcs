@@ -9,6 +9,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 ### Current Drafts
 * [RFC 1000 - Migrations](./text/1000-migrations.rst)
 * [RFC 1001 - CLI for installation and control of local EdgeDB server](./text/1001-edgedb-server-control.rst)
+* [RFC 1002 - Optionality qualifier in properties and links](./text/1002-optionality-qualifier.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
