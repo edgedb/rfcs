@@ -20,7 +20,7 @@ Currently, the tasks of installing, updating and running an EdgeDB server
 instances are entirely manual and vary a lot across the supported platforms.
 From the standpoint of local development this creates unnecessary friction
 and opens lots of possibilities for user error.  The current state also
-necessiates a non-trivial amount of documentation that new users must read.
+necessitates a non-trivial amount of documentation that new users must read.
 
 By implementing the installation, update, and control logic into the ``edgedb``
 CLI we can significantly simplify the process of getting started with EdgeDB
@@ -47,7 +47,7 @@ prefix:
 * ``edgedb server uninstall`` -- uninstall a specific version of the
   EdgeDB server or all versions of EdgeDB from the local machine;
 
-* ``edgedb server init`` -- intitialize a new EdgeDB server instance;
+* ``edgedb server init`` -- initialize a new EdgeDB server instance;
 
 * ``edgedb server start`` -- starts an EdgeDB server instance;
 
@@ -90,7 +90,7 @@ Interactive mode
 
 Most commands described below offer an interactive wizard mode that can
 be selected by passing the ``-i`` or ``--interactive`` option to the command.
-Whenever a command, running in non-interactive moce, encounters a
+Whenever a command, running in non-interactive mode, encounters a
 lack-of-input situation it should hint at the availability of the interactive
 mode.
 
@@ -151,7 +151,7 @@ Implementation
 By default, ``edgedb install`` will look for the most suitable package for
 the current platform and install it using the system's package manager
 if one is available, or download and unpack a generic package for the
-OS/arch, or use Docker if avalable (and requested).
+OS/arch, or use Docker if available (and requested).
 
 
 edgedb server uninstall

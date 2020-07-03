@@ -62,7 +62,7 @@ valid EdgeQL text and can be modified by the user directly, for example, to
 insert data migration queries.
 
 The ``create-migration`` command is normally interactive and relies on the
-user to provide input in schenarios where the migration is either ambiguous,
+user to provide input in scenarios where the migration is either ambiguous,
 or impossible without a data migration.
 
 The ``edgedb migrate`` command is used to bring the database schema to the
@@ -129,7 +129,7 @@ Synopsis::
 
 ``CREATE MIGRATION`` executes its body as a normal EdgeQL script and creates
 a corresponding ``sys::Migration`` object.  The statement is transactional,
-i.e it either succeedes fully or not at all.
+i.e it either succeeds fully or not at all.
 
 START MIGRATION
 ---------------
@@ -324,7 +324,7 @@ Discussion
 Downsides of the selected approach
 ----------------------------------
 
-The apprach described in this RFC requires a server connection to generate
+The approach described in this RFC requires a server connection to generate
 migrations.
 
 Design considerations
