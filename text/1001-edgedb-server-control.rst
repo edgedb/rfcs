@@ -139,19 +139,19 @@ Arguments
   if specified, ``edgedb install`` will only attempt to update the existing
   installations.
 
-``--docker``
-  Use Docker instead of downloading and installing packages directly onto
-  the user's system.  The Docker daemon must be present and accessible by
-  the user.
+``--method={package|docker}``
+  Use specified installation method. ``package`` installs a native package on
+  supported operating systems.  While ``docker`` uses Docker instead of
+  downloading and installing packages directly onto the user's system.  The
+  Docker daemon must be present and accessible by the user.
 
 
 Implementation
 --------------
 
-By default, ``edgedb install`` will look for the most suitable package for
-the current platform and install it using the system's package manager
-if one is available, or download and unpack a generic package for the
-OS/arch, or use Docker if available (and requested).
+By default, ``edgedb install`` will use system's package manager. If platform
+is unsupported error message will show other options, like installing it
+in Docker container if the latter is available on the system.
 
 
 edgedb server uninstall
@@ -237,11 +237,11 @@ Options
   The name of the EdgeDB instance.  Must be unique.  If not specified,
   the name ``default`` is used.
 
-``--port=<port-number>``
-  Optionally specifies the port number on which the server should listen.
-
 ``--server-options -- <options>``
   Passes ``edgedb-server`` options verbatim.  Must be the last argument.
+
+``--foreground``
+  Run server in the foreground instead of running as a system service.
 
 
 edgedb server status
@@ -330,7 +330,19 @@ Upgrades the specified EdgeDB server instance to a given EdgeDB version.
 Synopsis
 --------
 
-``edgedb server upgrade [options] [<name>]``
+There are few modes of operation of this command:
+
+``edgedb server upgrade``
+  Without arguments this command upgrades all instances which aren't running
+  nightly EdgeDB to a latest minor version of the server.
+
+``edgedb server upgrade <name> [--to-version=<ver>|--to-nightly]``
+  Upgrades specified instance to the specified major version of the server or
+  to the latest nightly, by default upgrades to the latest stable. This only
+  works for instances that initially aren't running nightly.
+
+``edgedb server upgrade --nightly``
+  Upgrades all existing nightly instances to the latest EdgeDB nightly.
 
 Options
 -------
@@ -339,12 +351,16 @@ Options
   The name of the EdgeDB instance.  If not specified, the name
   ``default`` is used.
 
-``--version``
+``--to-version``
   Specifies the version of EdgeDB to upgrade to.  If not specified,
   the latest available installed version is used.
 
+``--to-nightly``
+  Specifies that the instance should be upgraded to the nightly version.
+
 ``--nightly``
-  Upgrade to a nightly release.
+  Upgrade all instances currently running nightly to the latest nightly
+  version (includes upgrades across major versions).
 
 ``--allow-downgrade``
   Allow downgrading to an older version.  Downgrades are prohibited by
@@ -356,11 +372,19 @@ Options
 Implementation
 --------------
 
-This command:
+For minor upgrade this command:
 
-* starts a temporary instance of the new EdgeDB server
-* pipes data from the old server with `dump`/`restore`
-* stops both servers, renames the data directories and restarts the new server.
+* stops all running instances
+* upgrades the package
+* starts all instances
+
+For any other upgrade:
+
+* dumps everything to a directory ``<instance-name>.dump``
+  using ``edgedb dump --all``
+* upgrades needed packages
+* renames old data directory to ``<instance-name>.backup``
+* inits new server and restores data via ``edgedb restore --all```
 
 This keeps the original data directory in case ``--revert`` is requested.
 
@@ -368,7 +392,7 @@ This keeps the original data directory in case ``--revert`` is requested.
 edgedb server restart
 =====================
 
-Restarted the specified EdgeDB server instance.
+Restart the specified EdgeDB server instance.
 
 Synopsis
 --------
