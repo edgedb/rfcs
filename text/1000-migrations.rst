@@ -134,7 +134,7 @@ simple monotonic decimal counter ('00001.edgeql', '00002.edgeql', etc).
 The contents of the file is the body of the migration and must be valid
 EdgeQL.  Migration name, the name of the parent migration, the
 migration description message and other potential metadata are recorded
-in a comment block at the top of the file:
+in a comment block at the top of the file::
 
     # migration: <migration-name>
     # parent: <parent-migration-name>
