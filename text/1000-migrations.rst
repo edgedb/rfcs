@@ -38,9 +38,9 @@ Overview
 EdgeDB maintains changes to a database schema as a linear history of
 migrations.  A migration is essentially an EdgeQL script that performs
 the necessary transformations using DDL and, possibly, regular queries.
-In the database, the migrations are recorded as ``sys::Migration`` objects::
+In the database, the migrations are recorded as ``schema::Migration`` objects::
 
-    type sys::Migration {
+    type schema::Migration {
         # Migration name derived from the hash of contents and parent name.
         required property name -> str {
             constraint exclusive;
@@ -48,7 +48,7 @@ In the database, the migrations are recorded as ``sys::Migration`` objects::
         # Migration description.
         property message -> str;
         # Parent migrations.
-        multi link parents -> sys::Migration;
+        multi link parents -> schema::Migration;
         # Migration script.
         property script -> array<str>;
     }
@@ -157,7 +157,7 @@ name is as follows::
     #   <hash>
     #     the hash of the migration contents; in version 1 specified as:
     #
-    #       base32 ( sha256 ( <tokenstream> ) ),
+    #       lowercase ( base32 ( sha256 ( <tokenstream> ) ) ),
     #
     #     where <tokenstream> is a concatenation of tokens produced
     #     by lexing a CREATE MIGRATION command representing
@@ -170,6 +170,8 @@ name is as follows::
     #
     #     when concatenating the token stream, each token is separated
     #     by a null character '\x00'.
+
+First revision must have a parent version of `initial`.
 
 
 Implementation
@@ -200,8 +202,8 @@ CREATE MIGRATION
 Synopsis::
 
     CREATE MIGRATION [ <name> ONTO <parent-name> ] "{"
-        [ SET message := <message> ];
-        <subcommand> [, ... ]
+        [ SET message := <message> ; ]
+        <subcommand> ; [...]
     "}" ;
 
     # where
@@ -218,7 +220,7 @@ Synopsis::
     #      MIGRATION and TRANSACTION statements.
 
 ``CREATE MIGRATION`` executes its body as a normal EdgeQL script and creates
-a corresponding ``sys::Migration`` object.  The statement is transactional,
+a corresponding ``schema::Migration`` object.  The statement is transactional,
 i.e it either succeeds fully or not at all.
 
 START MIGRATION
