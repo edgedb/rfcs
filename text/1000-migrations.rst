@@ -278,7 +278,10 @@ While the migration block is active:
   inform the server that the currently proposed statement returned by
   a prior call to ``DESCRIBE CURRENT MIGRATION AS JSON`` is not acceptable
   and that the next execution of ``DESCRIBE`` should return an alternative
-  proposal.
+  proposal.  If the client rejected all proposed statements, the next
+  ``DESCRIBE`` will return an empty "proposed" value, and it will be
+  the responsibility of the client to explicitly issue the necessary
+  DDL command to complete the migration.
 
 * The ``POPULATE MIGRATION`` statement uses the statements suggested by
   the database server to complete the migration.
@@ -310,6 +313,10 @@ The returned JSON conforms to the following pseudo-schema::
     {
       // Name of the parent migration
       "parent": "m1...",
+
+      // Whether the confirmed + proposed DDL makes
+      // the migration complete.
+      "complete": {true|false},
 
       // List of confirmed migration statements
       "confirmed": [
@@ -353,6 +360,8 @@ Example::
 
     {
       "parent": "m1vrzjotjgjxhdratq7jz5vdxmhvg2yun2xobiddag4aqr3y4gavgq",
+
+      "complete": false,
 
       "confirmed": [
         "CREATE TYPE User { CREATE PROPERTY name -> str }"
