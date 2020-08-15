@@ -508,3 +508,69 @@ feature.
 A variant of ``START TRANSACTION`` without an explicit schema target was
 considered to create a "free form" migration using DDL statements, but it's
 unclear if such a feature is useful at this moment.
+
+
+Multiple choice proposals in DESCRIBE MIGRATION
+-----------------------------------------------
+
+An earlier version of this RFC proposed to include mutltiple scenarios in the
+"proposed" section of ``DESCRIBE CURRENT MIGRATION AS JSON`` to be presented
+as multiple choice by the client.  That approach has major downsides:
+
+1) Different scenarios may create significantly different DDL dependency paths,
+   for example::
+
+       type Foo;
+
+       type Bar {
+           link spam -> Foo;
+       };
+
+   migrated to::
+
+       type Ham;
+
+       type Bar {
+           link spam -> Ham;
+       };
+
+   If the change from ``Foo`` to ``Ham`` is interpreted as an ``ALTER``,
+   then only the following DDL will be necessary::
+
+       ALTER TYPE Foo RENAME TO Ham;
+
+   Alternatively, if the change is interpreted as a ``DROP``/``CREATE``,
+   the operation is as follows::
+
+       CREATE TYPE Ham;
+       // This is a destructive operation, because
+       // all current "spam" links would be dropped.
+       ALTER TYPE Bar ALTER LINK spam SET TYPE Ham;
+       DROP TYPE Foo;
+
+   In a complex migration it will be very difficult to split, attribute
+   and sort the schema diff to make sure that both the ``RENAME`` variant,
+   and the ``DROP`` variant get sorted consistently at the top of the
+   proposed DDL script, considering that there may be other dependencies
+   on the involved types.
+
+2) Listing all potential variants right away might be overwhelming in
+   certain scenarios.  Simplified example::
+
+      type Foo {
+          property a -> str;
+      };
+
+   migrated to::
+
+      type Foo {
+          property b -> str;
+          property c -> str;
+          property d -> str;
+          property e -> str;
+      };
+
+   There are 5 possible scenarios: 1) `a` renamed to `b`,
+   2) `a` renamed to `c`, 3) `a` renamed to `d`, 4) `a` renamed to `e`,
+   5) `a` dropped.  In a complex migration the potential space
+   for the list of variants may be enormous.
