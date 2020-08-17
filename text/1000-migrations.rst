@@ -182,10 +182,10 @@ Migration operation classification
 
 The migrations system classifies the migrations operations into two categories:
 safe and unsafe, based on whether the operation is automatically reversible
-without losing any prior data.  For example, all ``CREATE`` operations are
-considered safe by definition, but also alterations to schema that doesn't
-involve data mutation, such as annotations, indexes, etc.  All other operations
-are classified as unsafe.
+without losing any data present at the beginning of the migration.
+For example, all ``CREATE`` operations are considered safe by definition, but
+also alterations to schema that doesn't involve data mutation, such as
+annotations, indexes, etc. All other operations are classified as unsafe.
 
 Unsafe operations require confirmation in the interactive flows, and raise
 an error in non-interactive flows (unless ``--allow-unsafe`` is specified).
@@ -314,8 +314,8 @@ The returned JSON conforms to the following pseudo-schema::
       // Name of the parent migration
       "parent": "m1...",
 
-      // Whether the confirmed + proposed DDL makes
-      // the migration complete.
+      // Whether the confirmed DDL makes the migration complete,
+      // i.e. there are no more statements to issue.
       "complete": {true|false},
 
       // List of confirmed migration statements
@@ -347,7 +347,8 @@ The returned JSON conforms to the following pseudo-schema::
         Regular statement text.
       <stmt text template>:
         Statement text template with interpolation points using the \(name)
-        syntax.
+        syntax.  The client should treat templates and variables as strings
+        and perform string interpolation.
       <placeholder variable>:
         The name of an interpolation variable in the statement text template
         for which the user prompt is given.
