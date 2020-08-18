@@ -105,11 +105,14 @@ algorithm:
    that we have a few in-progress (not yet committed) migration files.
    The parent names in them are fluid -- generated and present in the file,
    but aren't yet in the database.
+
    Scenarios:
+
    a) A user has two in-progress migration files: 0004.edgeql and 0005.edgeql.
       If the user modifies 0004.edgeql and runs edgedb migration commit, we
       compute the name for 0004 and commit it; we then update the parent name
       in 0005 and commit it too.
+
    b) A user has two in-progress migration files: 0004.edgeql and 0005.edgeql.
       If the user modifies 0005.edgeql and runs edgedb migration commit,
       we first commit the 0004, validate that 0005 has the correct parent
@@ -172,6 +175,20 @@ name is as follows::
     #     by a null character '\x00'.
 
 First revision must have a parent version of `initial`.
+
+
+Migration operation classification
+==================================
+
+The migrations system classifies the migrations operations into two categories:
+safe and unsafe, based on whether the operation is automatically reversible
+without losing any data present at the beginning of the migration.
+For example, all ``CREATE`` operations are considered safe by definition, but
+also alterations to schema that doesn't involve data mutation, such as
+annotations, indexes, etc. All other operations are classified as unsafe.
+
+Unsafe operations require confirmation in the interactive flows, and raise
+an error in non-interactive flows (unless ``--allow-unsafe`` is specified).
 
 
 Implementation
@@ -254,8 +271,17 @@ While the migration block is active:
 * The ``DESCRIBE CURRENT MIGRATION AS JSON`` statement returns a complete
   description of the current migration: statements that have already been
   recorded to be part of the migration script as well as automatically
-  generated list of statements required to complete the migration.  See
-  the "DESCRIBE MIGRATION" section below for details.
+  generated proposal for the next DDL statement to include to advance
+  the migration.  See the "DESCRIBE MIGRATION" section below for details.
+
+* The ``ALTER CURRENT MIGRATION REJECT PROPOSED`` statement is used to
+  inform the server that the currently proposed statement returned by
+  a prior call to ``DESCRIBE CURRENT MIGRATION AS JSON`` is not acceptable
+  and that the next execution of ``DESCRIBE`` should return an alternative
+  proposal.  If the client rejected all proposed statements, the next
+  ``DESCRIBE`` will return an empty "proposed" value, and it will be
+  the responsibility of the client to explicitly issue the necessary
+  DDL command to complete the migration.
 
 * The ``POPULATE MIGRATION`` statement uses the statements suggested by
   the database server to complete the migration.
@@ -277,18 +303,21 @@ Synopsis::
 This is a special form of the ``DESCRIBE MIGRATION`` statement that is valid
 only inside a migration block. It returns a full description of the current
 migration block: statements that have already been recorded to be part of the
-migration, as well as the generated list of statements required to complete
-the migration.
-
-The latter may possibly contain *alternatives* for statements
-where there is no certainty, i.e. an ``ALTER`` vs a ``DROP + CREATE``.
-Additionally, each DDL statement may be accompanied by other metadata, such
-as the indication to provide a data migration expression for alterations
-that require it.
+migration, as well as the next statement that is proposed to advance the
+migration.  The proposed section also contains the confidence coefficient,
+which is an estimate of how likely the database system sees a particular
+change to be.
 
 The returned JSON conforms to the following pseudo-schema::
 
     {
+      // Name of the parent migration
+      "parent": "m1...",
+
+      // Whether the confirmed DDL makes the migration complete,
+      // i.e. there are no more statements to issue.
+      "complete": {true|false},
+
       // List of confirmed migration statements
       "confirmed": [
         "<stmt text>",
@@ -298,20 +327,18 @@ The returned JSON conforms to the following pseudo-schema::
       // The variants of the next statement
       // suggested by the system to advance
       // the migration script.
-      "proposed": [
-        {
-          "statements": [{
-            "text": "<stmt text template>",
-            "required-user-input": [{
-              "name": "<placeholder variable>",
-              "prompt": "<statement prompt>",
-            }]
-          }],
-          "confidence": (0..1) // confidence coefficient
-          "prompt": "<variant prompt>"
-        },
-        ...
-      ]
+      "proposed": {
+        "statements": [{
+          "text": "<stmt text template>",
+          "required-user-input": [{
+            "name": "<placeholder variable>",
+            "prompt": "<statement prompt>",
+          }]
+        }],
+        "confidence": (0..1), // confidence coefficient
+        "prompt": "<variant prompt>",
+        "safe": {true|false}
+      }
     }
 
     Where:
@@ -320,7 +347,8 @@ The returned JSON conforms to the following pseudo-schema::
         Regular statement text.
       <stmt text template>:
         Statement text template with interpolation points using the \(name)
-        syntax.
+        syntax.  The client should treat templates and variables as strings
+        and perform string interpolation.
       <placeholder variable>:
         The name of an interpolation variable in the statement text template
         for which the user prompt is given.
@@ -332,47 +360,88 @@ The returned JSON conforms to the following pseudo-schema::
 Example::
 
     {
+      "parent": "m1vrzjotjgjxhdratq7jz5vdxmhvg2yun2xobiddag4aqr3y4gavgq",
+
+      "complete": false,
+
       "confirmed": [
         "CREATE TYPE User { CREATE PROPERTY name -> str }"
       ],
 
-      "proposed": [
-        {
-          "statements": [{
-            "text": "ALTER TYPE Address " +
-                    "ALTER PROPERTY number " +
-                    "SET TYPE int64 USING \(expr)",
-            "required-user-input": [{
-              "name": "expr",
-              "prompt": "Altering Address.number to type " +
-                        "int64 requires an explicit conversion expression",
-            }]
-          }],
-          "confidence": 0.6
-          "prompt": "Did you alter the Address.number property?"
-        }, {
-          "statements": [{
-            "text": "ALTER TYPE Address { " +
-                    "DROP PROPERTY number; " +
-                    "CREATE PROPERTY number -> int64; }"
-          }],
-          "confidence": 0.4
-        }
-      ]
+      "proposed": {
+        "statements": [{
+          "text": "ALTER TYPE Address " +
+                  "ALTER PROPERTY number " +
+                  "SET TYPE int64 USING \(expr)",
+          "required-user-input": [{
+            "name": "expr",
+            "prompt": "Altering Address.number to type " +
+                      "int64 requires an explicit conversion expression",
+          }]
+        }],
+        "confidence": 0.6,
+        "prompt": "Did you alter the Address.number property?",
+        "safe": false
+      }
     }
 
-Migration operation classification
-----------------------------------
+The algorithm for obtaining the "proposed" data is as follows:
 
-The migrations system classifies the migrations operations into two categories:
-safe and unsafe, based on whether the operation is automatically reversible
-without losing any prior data.  For example, all ``CREATE`` operations are
-considered safe by definition, but also alterations to schema that doesn't
-involve data mutation, such as annotations, indexes, etc.  All other operations
-are classified as unsafe.
+1. Compute schema "A" from the state immediately preceding the
+   ``START MIGRATION`` command plus all statements in the "confirmed" list.
 
-Unsafe operations require confirmation in the interactive flows, and raise
-an error in non-interactive flows (unless ``--allow-unsafe`` is specified).
+2. Compute schema "B" from the SDL declaration passed to ``START MIGRATION``.
+
+3. Calculate the similarity matrix for each pair of objects of the same class
+   in schema "A" and schema "B" (e.g. compare every object type in schema "A"
+   with schema "B").  Only top-level objects are considered (i.e. object types,
+   abstract link definitions etc). The rows of the matrix represent objects
+   from schema "A", columns -- objects from schema "B", and the cells contain
+   *similarity index*, which is a floating point value from ``0.0`` to ``1.0``,
+   where ``0`` means "completely dissimilar" and ``1.0`` means "identical".
+   The similarity score is set to ``0`` if the command generated by this pair
+   in a previous run was rejected by ``ALTER CURRENT MIGRATION REJECT
+   PROPOSED``.  For example::
+
+        +-------+-----+-----+-----+
+        | A \ B | Foo | Bar | Baz |
+        +-------+-----+-----+-----+
+        | Foo   | 1.0 | 0.2 | 0.1 |
+        +-------+-----+-----+-----+
+        | Bar   | 0.2 | 0.9 | 0.3 |
+        +-------+-----+-----+-----+
+
+4. Exclude all objects that are considered to be the same in both schemas from
+   the similarity matrix, i.e. exclude rows and columns that contain a ``1.0``
+   value.
+
+5. For each object in schema "B" in the similarity matrix, find the cell with
+   the greatest similarity score.  If the similarity score is greater than
+   ``0.6`` assume the object has been ``ALTER``-ed and generate an appropriate
+   DDL command.  Exclude the row and the column from further consideration.
+
+6. For each remaining row in the matrix, assume object deletion and generate
+   the appropariate ``DROP`` DDL.  For each remaining column in the matrix,
+   assume new object and generate the appropriate ``CREATE`` DDL.
+
+7. Sort the generated DDL commands according to the dependency topology.
+
+8. Pick the first DDL statement from the sorted list.  This is the new
+   "proposed" statement.
+
+
+ALTER CURRENT MIGRATION REJECT PROPOSED
+---------------------------------------
+
+This statement is only valid while inside the ``START MIGRATION`` block.
+When executed it marks the statement found in the "proposed" branch of
+``DESCRIBE CURRENT MIGRATION AS JSON`` as "unacceptable" and forces the
+server to recompute the diff with this command excluded.  This, effectively
+allows the client to implement the (y) / (n) flow for each proposed statement
+in the migration.  For (y) the client would send back the proposed statement
+to be recorded in the "confirmed" list, and for (n) an ``ALTER CURRENT
+MIGRATION REJECT PROPOSED`` is sent instead.
+
 
 REVERT SCHEMA
 -------------
@@ -440,3 +509,69 @@ feature.
 A variant of ``START TRANSACTION`` without an explicit schema target was
 considered to create a "free form" migration using DDL statements, but it's
 unclear if such a feature is useful at this moment.
+
+
+Multiple choice proposals in DESCRIBE MIGRATION
+-----------------------------------------------
+
+An earlier version of this RFC proposed to include mutltiple scenarios in the
+"proposed" section of ``DESCRIBE CURRENT MIGRATION AS JSON`` to be presented
+as multiple choice by the client.  That approach has major downsides:
+
+1) Different scenarios may create significantly different DDL dependency paths,
+   for example::
+
+       type Foo;
+
+       type Bar {
+           link spam -> Foo;
+       };
+
+   migrated to::
+
+       type Ham;
+
+       type Bar {
+           link spam -> Ham;
+       };
+
+   If the change from ``Foo`` to ``Ham`` is interpreted as an ``ALTER``,
+   then only the following DDL will be necessary::
+
+       ALTER TYPE Foo RENAME TO Ham;
+
+   Alternatively, if the change is interpreted as a ``DROP``/``CREATE``,
+   the operation is as follows::
+
+       CREATE TYPE Ham;
+       // This is a destructive operation, because
+       // all current "spam" links would be dropped.
+       ALTER TYPE Bar ALTER LINK spam SET TYPE Ham;
+       DROP TYPE Foo;
+
+   In a complex migration it will be very difficult to split, attribute
+   and sort the schema diff to make sure that both the ``RENAME`` variant,
+   and the ``DROP`` variant get sorted consistently at the top of the
+   proposed DDL script, considering that there may be other dependencies
+   on the involved types.
+
+2) Listing all potential variants right away might be overwhelming in
+   certain scenarios.  Simplified example::
+
+      type Foo {
+          property a -> str;
+      };
+
+   migrated to::
+
+      type Foo {
+          property b -> str;
+          property c -> str;
+          property d -> str;
+          property e -> str;
+      };
+
+   There are 5 possible scenarios: 1) `a` renamed to `b`,
+   2) `a` renamed to `c`, 3) `a` renamed to `d`, 4) `a` renamed to `e`,
+   5) `a` dropped.  In a complex migration the potential space
+   for the list of variants may be enormous.
