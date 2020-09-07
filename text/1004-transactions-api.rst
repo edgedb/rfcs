@@ -415,12 +415,25 @@ Future Work
 Transaction on Specific Connection
 ----------------------------------
 
-Do we want and how ``connection.retry()`` should work?
+This specification introduces ``ConnectionPool.retry``. But it's
+tempting to add a method on connection object itself:
+
+.. code-block:: python
+
+    with pool.acquire() as conn:
+        for tx in conn.retry():
+            with tx:
+                tx.query(..)
+
+While this covers "concurent update" and "deadlock" errors, with the
+current implementation it can't reconnect when when connection was
+interrupted while transaction is active. There are few ways it can work:
 
 a. It may only retry on the same connection and fail on disconnect
 b. It may reconnect and replace underlying socket in the connection
    object and retry
-c. We may only allow transactions on connection pools
+c. We may only allow transactions on connection pools (current
+   specification)
 
 This can be postponed to later RFC when we know what are use cases of
 it.
