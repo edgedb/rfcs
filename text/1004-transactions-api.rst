@@ -116,7 +116,7 @@ TypeScript API
 
     interface Pool {
         retry<T>(block: TransactionBlock, options: RetryOptions): T;
-        raw_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
+        try_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
     }
     class Connection {
         raw_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
