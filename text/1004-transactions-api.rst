@@ -145,6 +145,10 @@ And implement interface by respective classes:
 
 While removing inherent methods with the same name.
 
+Note: while ``Connection.try_transaction`` block is active,
+``Executor`` methods are disabled on the connection object itself
+(i.e. they throw ``TransactionActiveError``).
+
 Example of the recommended transaction API:
 
 .. code-block:: typescript
@@ -220,6 +224,13 @@ All network error within connection should be converted into
 ``EarlyNetworkError`` or ``NetworkError``. Former is used in context
 where we catch network error before sending a request.
 
+Additionally ``TransactionActiveError`` is introduced to signal that
+queries can't be executed on the connection object:
+
+.. code-block:: typescript
+
+    class TransactionActiveError extends InterfaceError {}
+
 
 Python API
 ----------
@@ -264,6 +275,7 @@ Pool methods for creating a transaction:
            readonly: bool = None,
            deferrable: bool = None,
        ) -> ContextManager[Transaction]: ...
+
 
 Example usage of ``retry`` on async pool:
 
@@ -345,6 +357,10 @@ Introduce the abstract classes for queries:
         def query_one_json(self, query: str, *args, **kwargs) -> str: ...
         def execute(self, query: str) -> None: ...
 
+Note: while ``Connection.try_transaction`` block is active,
+``Executor`` methods are disabled on the connection object itself
+(i.e. they throw ``TransactionActiveError``).
+
 These base classes should be implemented by respective classes:
 
 .. code-block:: python
@@ -374,6 +390,14 @@ and ``EarlyNetworkError`` with the following relationships:
 All network error within connection should be converted into
 ``EarlyNetworkError`` or ``NetworkError``. Former is used in context
 where we catch network error before sending a request.
+
+Additionally ``TransactionActiveError`` is introduced to signal that
+queries can't be executed on the connection object:
+
+.. code-block:: typescript
+
+    class TransactionActiveError(InterfaceError):
+        _code = 0x_FF_02_01_04
 
 
 Future Work
