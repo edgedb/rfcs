@@ -82,16 +82,16 @@ and convetions.
 Normal transactions that aren't retried are executed with
 ``try_transaction`` method.
 
-The ``retry`` function configured by the number of attempts and delay function.
-User can set either number of retry attempts either globally (for all errors)
-or for specific error condition (say only deadlocks).
+The ``retry`` function configured by the number of attempts and backoff
+function.  User can set either number of retry attempts either globally
+(for all errors) or for specific error condition (say only deadlocks).
 
 Current attempt number N is global. Which means if the last error is a
 deadlock and N is greater than the number of attempts on a deadlock we
 stop retrying and return error (even if previous error was a network
 error).
 
-Delay function by default is ``2^N * 100`` plus random number in range
+Backoff function by default is ``2^N * 100`` plus random number in range
 ``0..100`` microseconds. Where first retry (second attempt) has ``N=1``.
 Technically:
 
@@ -99,10 +99,11 @@ Technically:
 * In Python: ``lambda n: (2**n) * 0.1 + randrange(100)*0.1`` (seconds)
 * In Rust: ``|n| Duration::from_millis(2u64.pow(n)*100 + thread_rng().gen_range(0,100)``
 
-Delay is randomized so that if there was a coordinated failure (i.e. server
-restart which triggers all current transactions to retry) transactions don't
-overwhelm a database by reconnecting simultaneously. If delay function is
-adjusted it's recommeded to keep some randomization anyway.
+Backoff is randomized so that if there was a coordinated failure (i.e.
+server restart which triggers all current transactions to retry)
+transactions don't overwhelm a database by reconnecting simultaneously.
+If backoff function is adjusted it's recommeded to keep some
+randomization anyway.
 
 
 TypeScript API
@@ -172,7 +173,7 @@ The ``RetryOptions`` signature:
 
 .. code-block:: typescript
 
-    type DelayFn = (attempt: number) => number;
+    type BackoffFn = (attempt: number) => number;
     enum AttempsOption {
         All,
         NetworkError,
@@ -188,7 +189,7 @@ The ``RetryOptions`` signature:
         attempts(
             which: AttemptsOption,
             attempts: number,
-            delay_ms?: DelayFn,
+            backoff_ms?: BackoffFn,
         ): RetryOptions;
     }
 
@@ -322,7 +323,7 @@ Add ``RetryOptions`` class:
         def attempts(
             which: AttemptsOption,
             attempts: int,
-            delay_ms: Callable[[int], [float]],
+            backoff_ms: Callable[[int], [float]],
         ): RetryOptions: ...
     }
 
