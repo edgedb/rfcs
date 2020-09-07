@@ -234,7 +234,7 @@ Pool methods for creating a transaction:
        def retry(
            options: RetryOptions = None
        ) -> AsyncIterable[AsyncContextManager[AsyncIOTransaction]]: ...
-       async def raw_transaction(*,
+       async def try_transaction(*,
            isolation: str = None,
            readonly: bool = None,
            deferrable: bool = None,
