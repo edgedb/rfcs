@@ -295,6 +295,15 @@ Example usage of ``retry`` on sync pool:
         let val = tx.fetch("...")
         tx.execute("...", process_value(val))
 
+This works roughly as follows:
+
+1. ``retry()`` returns an (async-)iterator which has no methods.
+2. Every yielded element is a transaction object, strongly referencing
+   the iterator that created it internally.
+3. If the code in the ``async with`` / ```with`` block succeeds,
+   the transaction object messages its iterator to stop iteration.
+
+
 Example of ``try_transaction``:
 
 .. code-block:: python
