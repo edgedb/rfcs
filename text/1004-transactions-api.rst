@@ -92,7 +92,7 @@ stop retrying and return error (even if previous error was a network
 error).
 
 Backoff function by default is ``2^N * 100`` plus random number in range
-``0..100`` microseconds. Where first retry (second attempt) has ``N=1``.
+``0..100`` milliseconds. Where first retry (second attempt) has ``N=1``.
 Technically:
 
 * In JavaScript: ``n => (2**n) * 100 + Math.random()*100``
