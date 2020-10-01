@@ -189,14 +189,13 @@ Initialize a new EdgeDB server instance with the specified name.
 Synopsis
 --------
 
-``edgedb server init [options] [<name>]``
+``edgedb server init [options] <name>``
 
 Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  Must be unique.  If not specified,
-  the name ``default`` is used.
+  The name of the EdgeDB instance.  Must be unique.
 
 ``--version=<ver>``
   Optionally specifies the server version to use.  If not specified,
@@ -228,14 +227,13 @@ Starts an EdgeDB server instance with the specified name.
 Synopsis
 --------
 
-``edgedb server start [options] [<name>]``
+``edgedb server start [options] <name>``
 
 Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  Must be unique.  If not specified,
-  the name ``default`` is used.
+  The name of the EdgeDB instance.  Must be unique.
 
 ``--server-options -- <options>``
   Passes ``edgedb-server`` options verbatim.  Must be the last argument.
@@ -258,11 +256,9 @@ Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  If not specified, the name
-  ``default`` is used.
+  The name of the EdgeDB instance.  If not specified status of the all
+  instances is printed.
 
-``--all``
-  Show the status of all known instances.
 
 Implementation
 --------------
@@ -281,14 +277,13 @@ Show the logs of the specified EdgeDB server instance.
 Synopsis
 --------
 
-``edgedb server logs [options] [<name>]``
+``edgedb server logs [options] <name>``
 
 Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  If not specified, the name
-  ``default`` is used.
+  The name of the EdgeDB instance.
 
 ``--tail <number>``
   Show the last ``number`` of log entries.
@@ -306,14 +301,13 @@ Stops the specified EdgeDB server instance.
 Synopsis
 --------
 
-``edgedb server stop [options] [<name>]``
+``edgedb server stop [options] <name>``
 
 Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  If not specified, the name
-  ``default`` is used.
+  The name of the EdgeDB instance.
 
 ``--mode=<fast|graceful>``
   The server restart mode. The ``fast`` mode (the default) does not wait
@@ -348,8 +342,9 @@ Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  If not specified, the name
-  ``default`` is used.
+  The name of the EdgeDB instance. If omitted all stable instances will
+  be upgraded to the latest minor version. (Or all nightly instances
+  will be upgraded with ``--nightly``)
 
 ``--to-version``
   Specifies the version of EdgeDB to upgrade to.  If not specified,
@@ -397,14 +392,13 @@ Restart the specified EdgeDB server instance.
 Synopsis
 --------
 
-``edgedb server restart [options] [<name>]``
+``edgedb server restart [options] <name>``
 
 Options
 -------
 
 ``<name>``
-  The name of the EdgeDB instance.  If not specified, the name
-  ``default`` is used.
+  The name of the EdgeDB instance.
 
 ``--mode=<fast|graceful>``
   The server restart mode. The ``fast`` mode (the default) does not wait
