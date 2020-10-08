@@ -4,7 +4,7 @@
     Type: Process
     Created: 2020-10-08
     Authors: Łukasz Langa <lukasz@edgedb.com>
-    RFC PR: ``_
+    RFC PR: `edgedb/rfcs#0022 <https://github.com/edgedb/rfcs/pull/22/>`_
 
 =================================
 RFC 0002: Doing an EdgeDB Release
