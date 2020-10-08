@@ -6,9 +6,9 @@
     Authors: Łukasz Langa <lukasz@edgedb.com>
     RFC PR: `edgedb/rfcs#0022 <https://github.com/edgedb/rfcs/pull/22/>`_
 
-=================================
-RFC 0002: Doing an EdgeDB Release
-=================================
+====================================
+RFC 0002: The EdgeDB Release Process
+====================================
 
 
 Overview

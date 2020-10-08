@@ -13,7 +13,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
-* [RFC 2 - Doing an EdgeDB Release](./text/0002-doing-an-edgedb-release.rst) (active)
+* [RFC 2 - The EdgeDB Release Process](./text/0002-edgedb-release-process.rst) (active)
 * [RFC 1002 - Optionality qualifier in properties and links](./text/1002-optionality-qualifier.rst) (final)
 
 ## License
