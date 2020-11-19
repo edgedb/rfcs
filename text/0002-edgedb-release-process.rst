@@ -100,6 +100,16 @@ External places to bump binaries at
 
 3. Update the Homebrew tap.
 
+  The tap is auto-updating nightly. If you need to bump it faster,
+  use the HTTP repository dispatch documented in the README of the
+  tap.
+
+  Alternatively, on an installed Homebrew the repository lives in
+  /usr/local/Homebrew/Library/Taps/edgedb/homebrew-tap.  Go there
+  and run `./autoupdate.py`, commit and push the changes.
+
+
+
 
 Updating the Website
 ====================
