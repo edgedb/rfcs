@@ -232,7 +232,7 @@ There are different ways of these options are actually applied:
 
 But all of that are implementation details. We provide uniform interface
 for all these options and future protocols or connection pools may use
-a different method. For example:
+a different underlying implementation. E.g. in the future:
 
 1. Multiple session configuration options may be gathered and applied in
    one batch
