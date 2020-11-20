@@ -700,7 +700,7 @@ field is present) as it indicates that query has been analyzed.
 The ``SERVER_OPT_HAS_FEATURES`` is needed for the following tasks:
 
 1. Retry standalone (non-transactional) read-only queries
-2. Warn when features are used in inapropriate context (warn when
+2. Warn when features are used in inapropriate context (e.g. when
    session modification queries are sent on non-raw connection, which
    means they can be lost at any point due to reconnect)
 
