@@ -293,8 +293,8 @@ If backoff function is adjusted it's recommeded to keep some
 randomization anyway.
 
 
-TypeScript API
-``````````````
+TypeScript Transactions API
+```````````````````````````
 
 **Introduce** two methods on a connection pool and connection:
 
@@ -424,8 +424,8 @@ queries can't be executed on the connection object:
     class TransactionActiveError extends InterfaceError {}
 
 
-Python API
-``````````
+Python Transactions API
+```````````````````````
 
 For python API plain ``with`` doesn't work any more, so we introduce a
 loop and with block. See example below.
@@ -599,7 +599,8 @@ All network error within connection should be converted into
 where we catch network error before sending a request.
 
 Additionally ``TransactionActiveError`` is introduced to signal that
-queries can't be executed on the connection object:
+queries can't be executed on the connection object (i.e. when
+connection object is "borrowed" for the duration of the transaction):
 
 .. code-block:: python
 
