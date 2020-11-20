@@ -452,7 +452,7 @@ Pool methods for creating a transaction:
 
    class Pool:
        def retry() -> Iterable[ContextManager[Transaction]]: ...
-       def raw_transaction(
+       def try_transaction(
            isolation: str = None,
            read_only: bool = None,
            deferrable: bool = None,
