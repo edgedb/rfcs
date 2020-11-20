@@ -667,7 +667,7 @@ To support features above we add two headers to EdgeDB queries:
 2. For Prepare_, OptimisticExecute_, Execute_, ExecuteScript_
    client-side messages: ``QUERY_OPT_ALLOW_FEATURES``
 
-Both contain 32bit bitmap of the following:
+Both contain 64bit bitmap of the following:
 
 1. `MODIFICATONS      0b00001` -- query is not read-only
 2. `SESSION_CONFIG    0b00010` -- query contains session config change
