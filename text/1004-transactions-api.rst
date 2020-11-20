@@ -314,7 +314,7 @@ TypeScript Transactions API
 Raw connection has only ``try_transaction`` method:
 
     class Connection {
-        raw_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
+        try_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
     }
 
 Note: transaction options are passed directly to ``try_transaction`` as
@@ -460,7 +460,7 @@ Pool methods for creating a transaction:
 
    class Connection:
        def retry() -> Iterable[ContextManager[Transaction]]: ...
-       def raw_transaction(
+       def try_transaction(
            isolation: str = None,
            read_only: bool = None,
            deferrable: bool = None,
