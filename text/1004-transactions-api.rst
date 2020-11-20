@@ -246,8 +246,8 @@ a different underlying implementation. E.g. in the future:
    a per-request basis or vice versa make the read-only flag the session
    configuration.
 
-All of these optimizations are seamless for the users. And we expect
-users to trust language bindings to do the optimal thing.
+All of these optimizations would be seamless for the API users,
+who should trust the language bindings to do the optimal thing.
 
 
 Transactions API
