@@ -308,7 +308,7 @@ TypeScript API
     }
     class Connection {
         retry<T>(block: TransactionBlock): T;
-        raw_transaction<T>(action: TransactionBlock): T;
+        try_transaction<T>(action: TransactionBlock): T;
     }
 
 Raw connection has only ``try_transaction`` method:
