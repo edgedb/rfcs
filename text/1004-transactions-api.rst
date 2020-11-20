@@ -788,12 +788,13 @@ The ``retry`` method complicates the learning curve, but:
    user to factor out slow blocking code, like making API calls over
    network. This ensures that DB transactions would not be open longer
    than it is necessary.
-3. Even if we never have failed concurrent updates we would want
-   seamless reconnect on connection failures (i.e. server restart,
-   primary/replica change, etc.)
-4. To make learning curves shorter I think we should intentionally
-   inject failures. This is needed so that users quickly find out that
-   side effects of their transactions are in effect several times.
+3. The API adds resilience against not only errors related to failing to
+   serialize concurrent updates, but also against possible network
+   errors caused by the DB server restart, primary/replica changes,
+   etc.
+4. In the future we will consider adding a connection setting to inject
+   failures into transactions to help users discover incorrect
+   transactional code.
 
 So while increasing learning curve, we fix heisenbugs and simplify
 operations.
