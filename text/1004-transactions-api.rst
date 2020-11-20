@@ -947,7 +947,7 @@ There are few problems of this approach:
    network failures would be an issue
 
 
-Keep `transaction` as is but Add a Helper for Retrying
+Separate Retry API
 ------------------------------------------------------
 
 The problem with this approach is that it hard to teach using ``retry``
