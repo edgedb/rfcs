@@ -175,22 +175,14 @@ Here are method signatures:
 
     class Connection:
         ...
-        def read_only(self,
-            primary: bool = false,
-            allow_upgrade: bool = false,  # allows with_modifications
-        ) -> ReadOnlyConnection: ...
-        def with_modifications(self) -> Connection: ...
+        def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
         def with_session_config(self, **config) -> Connection: ...
         def with_transaction_options(self, isolation: ...) -> Connection: ...
         def with_retry_options(self, attempts: int = 3, ...) -> Connection: ...
 
     class Pool:
         ...
-        def read_only(self,
-            primary: bool = false,
-            allow_upgrade: bool = false,  # allows with_modifications
-        ) -> ReadOnlyConnection: ...
-        def with_modifications(self) -> Connection: ...
+        def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
         def with_session_config(self, **config) -> Pool: ...
         def with_transaction_options(self, isolation: ...) -> Pool: ...
         def with_retry_options(self, attempts: int = 3, ...) -> Pool: ...
@@ -207,8 +199,6 @@ After modification, connection/pool object can be used interchangeably:
     conn.execute("INSERT User { ... }", ...)
     print(read_only_conn.query("SELECT User"))
     read_only_conn.execute("INSERT User { .. }", ...)  # throws an error
-    conn.read_only(allow_upgrade=True) \
-        .with_modifications().execute("INSERT User { ... }", ...)  # good
 
 Or session config example:
 
@@ -355,14 +345,14 @@ Example of the recommended transaction API:
 .. code-block:: typescript
 
     await pool.retry(tx => {
-        let val = await tx.fetch("...")
+        let val = await tx.query("...")
         await tx.execute("...", process_value(val))
     })
 
 Example using ``try_transaction``:
 
     await pool.try_transaction(tx => {
-        let val = await tx.fetch("...")
+        let val = await tx.query("...")
         await tx.execute("...", process_value(val))
     })
 
@@ -473,7 +463,7 @@ Example usage of ``retry`` on async pool:
 
     async for tx in db.retry():
       async with tx:
-        let val = await tx.fetch("...")
+        let val = await tx.query("...")
         await tx.execute("...", process_value(val))
 
 Example usage of ``retry`` on sync pool:
@@ -482,7 +472,7 @@ Example usage of ``retry`` on sync pool:
 
     for tx in db.retry():
       with tx:
-        let val = tx.fetch("...")
+        let val = tx.query("...")
         tx.execute("...", process_value(val))
 
 This works roughly as follows:
@@ -499,7 +489,7 @@ Example of ``try_transaction``:
 .. code-block:: python
 
       async with db.try_transaction() as tx:
-        let val = await tx.fetch("...")
+        let val = await tx.query("...")
         await tx.execute("...", process_value(val))
 
 Note the new API is very similar to older ``transaction`` except the
@@ -775,6 +765,31 @@ Perhaps this should be encapsulated into replica options:
    def read_only(self, primary=False, replicas: ReplicaOptions): ...
 
 
+Add ``with_modifications`` Method
+---------------------------------
+
+It's intuitive that databases are mutable by default. But there is a
+large class of applications that are mostly read-only and must have
+limited and easy to find places having mutations. For those apps it's
+better to have read-only connection by default and use a pattern like
+this for writes:
+
+.. code-block:: python
+
+    async def save(conn):
+        async for tx in conn.with_modifications().retry():
+          async with tx:
+            ...
+
+While retry is also easy to find, nothing stops user from writing:
+
+.. code-block:: python
+
+    await conn.query("INSERT User { .. }")
+
+Except the read_only configuration.
+
+
 Learning Curve
 ==============
 
@@ -826,9 +841,6 @@ For ``try_transaction`` method:
 ``read_only`` could be ``with_read_only`` to support convention. But it
 looks like it's clear enough.
 
-``with_modifications`` could be ``read_write`` or ``with_read_write`` or
-``clear_read_only``. Or it could be ``read_only(false)``.
-
 
 Alternative Python API
 ----------------------
@@ -841,7 +853,7 @@ For python API we could support funcional API:
         await db.retry(my_tx, req)
 
     async def my_tx(transaction, req):
-        let val = await transaction.fetch("...")
+        let val = await transaction.query("...")
         await transaction.execute("...", process_value(val))
 
 And/or decorator API:
@@ -853,7 +865,7 @@ And/or decorator API:
 
         @db.retry()
         def my_tx(transaction):
-            let val = transaction.fetch("...")
+            let val = transaction.query("...")
             transaction.execute("...", process_value(val))
 
         return render_page(val)
@@ -967,38 +979,6 @@ wrapped into a transaction is always safe. Therefore our recommendation
 to users would be to use the new ``retry()`` API when they know that the
 query would be safe to repeat.
 
-
-Is ``with_modifications`` Needed?
----------------------------------
-
-It's intuitive that databases are mutable by default. But there is a
-large class of applications that are mostly read-only and must have
-limited and easy to find places having mutations. For those apps it's
-better to have read-only connection by default and use a pattern like
-this for writes:
-
-.. code-block:: python
-
-    def save(conn):
-        async for tx in conn.with_mutations().retry():
-          async with tx:
-            ...
-
-While retry is also easy to find, nothing stops user from writing:
-
-.. code-block:: python
-
-    conn.fetch("INSERT User { .. }")
-
-Except the read_only configuration.
-
-The metadata is will probably be implemented later and works the same:
-
-.. code-block:: python
-
-    def http_handler(req, conn):
-        req['conn'] = conn.with_metadata(url=req.url)
-        process_request(req)
 
 Use Context Manager
 -------------------
