@@ -98,39 +98,39 @@ classes:
 
 .. code-block:: python
 
-    class Connection:
+    class AsyncIOConnection:
         _impl: _SingletonPool
         _desired_config: SessionConfig
 
-    class ReadOnlyConnection:
+    class AsyncIOReadOnlyConnection:
         _impl: _SingletonPool
         _desired_config: SessionConfig
 
     class _SingletonPool
         _impl: RawConnection
 
-    class RawConnection:
+    class AsyncIORawConnection:
         _protocol: BlockingIOProtocol
         _current_config: SessionConfig
 
-    def connect() -> Connection: ...
+    async def connect() -> AsyncIOConnection: ...
 
 Similarly we update connection pool classes API:
 
 .. code-block:: python
 
-    class Pool(ReadOnlyPool):
+    class AsyncIOPool(AsyncIOReadOnlyPool):
         _impl: _PoolImpl
         _desired_config: SessionConfig
 
-    class ReadOnlyPool:
+    class AsyncIOReadOnlyPool:
         _impl: _SingletonPool
         _desired_config: SessionConfig
 
     class _PoolImpl:
         _connections: deque[RawConnection]  # Simplified
 
-Both ``Pool`` and ``Connection`` have:
+Both ``AsyncIOPool`` and ``AsyncIOConnection`` have:
 
 1. ``execute``, ``query`, ``query_one`` set of query functions
    (implement ``Executor`` abstract class defined below). All the
@@ -152,7 +152,7 @@ important ways:
 session config management stuff, connection pooling or control of
 reconnection.
 
-Note: this section contains only sync Python example, async Python and
+Note: this section contains only async Python example, sync Python and
 JavaScript bindings undergo changes similar enough that we don't think
 it makes sense to put them here explicitly.
 
@@ -173,42 +173,42 @@ Here are method signatures:
 
 .. code-block:: python
 
-    class Connection:
+    class AsyncIOConnection:
         ...
-        def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
-        def with_session_config(self, **config) -> Connection: ...
-        def with_transaction_options(self, isolation: ...) -> Connection: ...
-        def with_retry_options(self, attempts: int = 3, ...) -> Connection: ...
+        async def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
+        async def with_session_config(self, **config) -> Connection: ...
+        async def with_transaction_options(self, isolation: ...) -> Connection: ...
+        async def with_retry_options(self, attempts: int = 3, ...) -> Connection: ...
 
-    class Pool:
+    class AsyncIOPool:
         ...
-        def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
-        def with_session_config(self, **config) -> Pool: ...
-        def with_transaction_options(self, isolation: ...) -> Pool: ...
-        def with_retry_options(self, attempts: int = 3, ...) -> Pool: ...
+        async def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
+        async def with_session_config(self, **config) -> Pool: ...
+        async def with_transaction_options(self, isolation: ...) -> Pool: ...
+        async def with_retry_options(self, attempts: int = 3, ...) -> Pool: ...
 
-The ``ReadOnlyPool`` and ``ReadOnlyConnection`` get the same methods
-(including ``read_only`` method itself, which is no-op).
+The ``AsyncIOReadOnlyPool`` and ``AsyncIOReadOnlyConnection`` get the
+same methods (including ``read_only`` method itself, which is no-op).
 
 After modification, connection/pool object can be used interchangeably:
 
 .. code-block:: python
 
-    conn = edgedb.connect()
-    read_only_conn = conn.read_only()
-    conn.execute("INSERT User { ... }", ...)
-    print(read_only_conn.query("SELECT User"))
-    read_only_conn.execute("INSERT User { .. }", ...)  # throws an error
+    conn = await edgedb.connect()
+    read_only_conn = await conn.read_only()
+    await conn.execute("INSERT User { ... }", ...)
+    print(await read_only_conn.query("SELECT User"))
+    await read_only_conn.execute("INSERT User { .. }", ...)  # throws an error
 
 Or session config example:
 
 .. code-block:: python
 
-    conn = edgedb.connect()
-    conn2 = conn.with_session_config(param="value")
-    conn.execute("INSERT User { ... }", ...)  # without config
-    print(conn2.query("SELECT User"))  # with config
-    conn.execute("INSERT User { .. }", ...)  # without config again
+    conn = await edgedb.connect()
+    conn2 = await conn.with_session_config(param="value")
+    await conn.execute("INSERT User { ... }", ...)  # without config
+    print(await conn2.query("SELECT User"))  # with config
+    await conn.execute("INSERT User { .. }", ...)  # without config again
 
 There are different ways of these options are actually applied:
 
@@ -293,18 +293,21 @@ TypeScript Transactions API
     type TransactionBlock = (Transaction) => Promise<T>;
 
     interface Pool {
-        retry<T>(block: TransactionBlock): T;
-        try_transaction<T>(action: TransactionBlock): T;
+        async retry<T>(block: TransactionBlock): Promise<T>;
+        async try_transaction<T>(action: TransactionBlock): Promise<T>;
     }
     class Connection {
-        retry<T>(block: TransactionBlock): T;
-        try_transaction<T>(action: TransactionBlock): T;
+        async retry<T>(block: TransactionBlock): Promise<T>;
+        async try_transaction<T>(action: TransactionBlock): Promise<T>;
     }
 
 Raw connection has only ``try_transaction`` method:
 
-    class Connection {
-        try_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
+    class RawConnection {
+        async try_transaction<T>(
+            action: TransactionBlock,
+            options?: TransactionOptions,
+        ): Promise<T>;
     }
 
 Note: transaction options are passed directly to ``try_transaction`` as
