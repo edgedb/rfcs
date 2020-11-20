@@ -799,29 +799,6 @@ The ``retry`` method complicates the learning curve, but:
 So while increasing learning curve, we fix heisenbugs and simplify
 operations.
 
-Failure Injection
------------------
-
-The following is proposed to be done by default:
-
-Collect statitics of how many queries are executed in the previous
-second and on each new request trigger a failure with the probability of
-``1/n`` where ``n`` is the number of requests in the previous second. We
-still need to figure out whether ``n`` counts queries, transactions, or
-mutable queries/transactions (and have a list of exceptions, perhaps:
-dump+restore+migrations).
-
-The idea is that there will be ~1 failure per second. So on local
-instance when testing manually it would hit almost every request (which
-is fine as repeating them shouldn't be prohibitively costly). But under
-a huge load of thousands requests per second, one retry per second
-doesn't influence anything so even for production and/or benchmarks this
-is fine.
-
-I think it should be disabled by an explicit command-line argument like
-``--disable-failure-injection`` but might be tweaked with configuration
-settings?
-
 
 Alternatives
 ============
