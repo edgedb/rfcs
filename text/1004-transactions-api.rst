@@ -919,18 +919,20 @@ There are few problems of this approach:
    sub-application might repeat manually an extra repeating automatically
    might make transaction slower and introduce unexpected repeatable side
    effects.
-2. This doesn't help in case of pythonic `with db.transaction()` as we
+2. This doesn't help in case of pythonic ``with db.transaction()`` as we
    allow now.
-3. If we're advising `transaction` on connection object, reconnecting on
-   network failures would be an issue
+3. If we're advising ``transaction`` on connection object, reconnecting
+   on network failures would be an issue
 
 
 Separate Retry API
-------------------------------------------------------
+------------------
 
-The problem with this approach is that it hard to teach using ``retry``
-when raw transactions "work on my laptop". However, this is somewhat
-alleviated by failure injection.
+The problem of adding a separate transaction retry API while keeping the
+current ``Connection.transaction()`` family of methods is that it will
+be hard to educate the users that they should almost always use the
+former.  Most of the time transaction serialization and network errors
+are uncommon during the development and only surface when in production.
 
 
 Retry All Single Queries
