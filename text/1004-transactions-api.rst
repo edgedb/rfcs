@@ -942,7 +942,7 @@ This specification describes that read-only non-transactional queries
 should be retried automatically.
 
 While it's tempting to retry all ``pool.query`` and ``pool.execute``
-calls (even modifications), it **gives the false sense of security**: no
+calls (even those that execute queries with side effects), it **gives the false sense of security**: no
 "concurrent update" issues are seen.  But it's better to see such error
 and turn the whole block of code into a transaction rather than just a
 mutation. I.e. retrying a single mutable request on a "concurrent
