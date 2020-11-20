@@ -317,7 +317,7 @@ Raw connection has only ``try_transaction`` method:
         raw_transaction<T>(action: TransactionBlock, options?: TransactionOptions): T;
     }
 
-Note: transaction options are passed directly to ``raw_transaction`` as
+Note: transaction options are passed directly to ``try_transaction`` as
 it doesn't have ``with_transaction_options`` method.
 
 Introduce interface for making queries:
