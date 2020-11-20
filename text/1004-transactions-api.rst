@@ -16,7 +16,7 @@ Abstract
 
 This RFC describes client API that is:
 
-1. Robust for network errors and server failover (i.e. when server
+1. Resilient against network errors and server failover (i.e. when server
    changes IP address) both within a single transactions and for
    non-transactional queries.
 2. Retries transactions in a number of postgres conditions such as
@@ -1070,4 +1070,3 @@ External References
 * `Transaction Retry Discussion <https://github.com/edgedb/edgedb/discussions/1738>`_
 * `Stateful Connection Configuration Discussion <https://github.com/edgedb/edgedb/discussions/1896>`_
 * `Failover and Replication Discussion <https://github.com/edgedb/edgedb/discussions/1859>`_
-
