@@ -778,7 +778,7 @@ Perhaps this should be encapsulated into replica options:
 Learning Curve
 ==============
 
-The ``retry`` method complicates learning curve curve, but:
+The ``retry`` method complicates the learning curve, but:
 
 1. This is already a problem in Postgres, there a lot of people who
    ignore the issue for pet projects and a lot of startups having
