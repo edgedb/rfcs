@@ -19,7 +19,7 @@ This RFC describes client API that is:
 1. Resilient against network errors and server failover (i.e. when server
    changes IP address) both within a single transactions and for
    non-transactional queries.
-2. Retries transactions in a number of postgres conditions such as
+2. Retries transactions in a number of error conditions such as
    deadlock and concurrent update error.
 3. Provides uniform access to the underlying querying API from pool,
    connection and transaction objects.
