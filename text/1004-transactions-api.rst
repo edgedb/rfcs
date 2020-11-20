@@ -136,7 +136,7 @@ Both ``Pool`` and ``Connection`` have:
    (implement ``Executor`` abstract class defined below). All the
    methods reconnect if called on broken connection. Read-only queries
    broken in the middle of the query are retried.
-2. ``retry`` method (described before)
+2. ``retry`` method (described below)
 3. ``try_transaction`` method for more fine-grained control over
    transactions (this is older ``transaction`` method, see below)
 
