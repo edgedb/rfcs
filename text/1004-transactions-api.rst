@@ -148,7 +148,7 @@ important ways:
 2. Works as type-checker hint that function that received a connection
    does no modifications to the data.
 
-``RawConnection`` class is exposed for users want to do their own
+``RawConnection`` class is exposed for users who want to do their own
 session config management stuff, connection pooling or control of
 reconnection.
 
