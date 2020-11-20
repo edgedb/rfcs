@@ -941,12 +941,31 @@ Retry All Single Queries
 This specification describes that read-only non-transactional queries
 should be retried automatically.
 
-While it's tempting to retry all ``pool.query`` and ``pool.execute``
-calls (even those that execute queries with side effects), it **gives the false sense of security**: no
-"concurrent update" issues are seen.  But it's better to see such error
-and turn the whole block of code into a transaction rather than just a
-mutation. I.e. retrying a single mutable request on a "concurrent
-update" error must be a deliberate decision.
+But here is an example where retrying single ``.query()`` is wrong:
+
+.. code-block:: python
+
+    user = conn.query(
+        "SELECT User {money} FILTER .id = <uuid>$uid",
+        uid=user_id,
+    )
+    if user.money > price:
+        conn.query(
+            """
+                UPDATE User FILTER .id = <uuid>$uid
+                SET {
+                    money := User.money - <int32>$price,
+                    goods := User.goods + 1,
+                }
+            """,
+            uid=user_id, price=price,
+        )
+
+In some cases, retrying the second ``query()`` alone yields negative
+money or a constraint violation error, but retrying the whole block
+wrapped into a transaction is always safe. Therefore our recommendation
+to users would be to use the new ``retry()`` API when they know that the
+query would be safe to repeat.
 
 
 Is ``with_modifications`` Needed?
