@@ -143,7 +143,7 @@ Both ``Pool`` and ``Connection`` have:
 ``ReadOnly*`` counterparts differ from non-read-only ones in two
 important ways:
 
-1. They send read-only flag to the compiler, so compiler rejects queries
+1. They send read-only flag to the database server, which can reject queries
    that modify data. And *may* use replica connection.
 2. Works as type-checker hint that function that received a connection
    does no modifications to the data.
