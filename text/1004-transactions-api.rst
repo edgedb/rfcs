@@ -735,7 +735,7 @@ More Configuration
 ------------------
 
 Setting tracing/debugging metadata for queries may be implemented
-in the same way:
+in the same way in the future:
 
 .. code-block:: python
 
