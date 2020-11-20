@@ -780,13 +780,14 @@ Learning Curve
 
 The ``retry`` method complicates the learning curve, but:
 
-1. This is already a problem in Postgres, there a lot of people who
-   ignore the issue for pet projects and a lot of startups having
-   "normal" rate or 500 errors at any point of time, while it's
-   preventable.
-2. Repeating transactions would make less incentive to keep transactions
-   open for a long time (e.g. while accessing slow network resources
-   like external API), which is a problem of itself.
+1. Letting the application to error out instead of automatically
+   retrying certain transactions is a wildly known, yet an entirely
+   preventable problem.
+2. The design of the proposed ``retry()`` method emphasizes that the
+   code block might be executed more than one time, suggesting to the
+   user to factor out slow blocking code, like making API calls over
+   network. This ensures that DB transactions would not be open longer
+   than it is necessary.
 3. Even if we never have failed concurrent updates we would want
    seamless reconnect on connection failures (i.e. server restart,
    primary/replica change, etc.)
