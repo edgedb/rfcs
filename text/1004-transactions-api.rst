@@ -667,24 +667,24 @@ To support features above we add two headers to EdgeDB queries:
 2. For Prepare_, OptimisticExecute_, Execute_, ExecuteScript_
    client-side messages: ``QUERY_OPT_ALLOW_FEATURES``
 
-Both contain the set of strings joined by comma:
+Both contain 32bit bitmap of the following:
 
-1. `modification` -- query is not read-only
-2. `session` -- query contains session config change
-3. `config` -- server or database config change
-4. `ddl` -- query contains DDL
-5. `transaction` -- query contains start/commit/rollback of transaction
-    or savepoint manipulation
+1. `MODIFICATONS      0b00001` -- query is not read-only
+2. `SESSION_CONFIG    0b00010` -- query contains session config change
+3. `TRANSACTION       0b00100` -- query contains start/commit/rollback
+   of transaction or savepoint manipulation
+4. `DDL               0b01000` -- query contains DDL
+5. `PERSISTENT_CONFIG 0b10000` -- server or database config change
 
 In case of ``SERVER_OPT_HAS_FEATURES`` it describes what is actually
 contained in the query. And in case of ``QUERY_OPT_ALLOW_FEATURES``
 client can specify what of these things are allowed in this query.
 
 Read-only queries are always allowed. When ``QUERY_OPT_ALLOW_FEATURES``
-is omitted any query is allowed (default). With the empty string only
-read-only queries are allowed.
+is omitted any query is allowed (default). With the bit mask of zero
+only read-only queries are allowed.
 
-``SERVER_OPT_HAS_FEATURES`` is an empty string for read-only queries (the
+``SERVER_OPT_HAS_FEATURES`` is zero for read-only queries (the
 field is present) as it indicates that query has been analyzed.
 
 The ``SERVER_OPT_HAS_FEATURES`` is needed for the following tasks:
@@ -696,10 +696,11 @@ The ``SERVER_OPT_HAS_FEATURES`` is needed for the following tasks:
 
 By default:
 
-1. Pool supports all except ``transaction,session``
+1. Pool supports all except ``TRANSACTION | SESSION_CONFIG``
 2. Read-only pool and read-only connection support none
-3. Connection warns on ``session`` and ``transaction``
-4. Connection got from pool errors on ``session`` and ``transaction``
+3. Connection warns on ``SESSION_CONFIG`` and ``TRANSACTION``
+4. Connection got from pool errors on ``SESSION_CONFIG`` and
+   ``TRANSACTION``
 5. Everything is allowed in ``RawConnection``
 
 Note: session settings and transactions should be activated using
@@ -1035,13 +1036,13 @@ Disabling Features
 ------------------
 
 We may introduce a pool and/or connection configuration to disable
-``ddl`` and ``config`` features on the requests. And/or disable
-``session`` and ``transaction`` features on connection. This should be
-default for many applications. But since scripting DDL and database
-configuration is also a valid use case and since the risk of misusing
-that is quite small we don't include it into the specification. Also
-disabling ``ddl`` and ``config`` features should be covered by
-permissions.
+``DDL`` and ``PERSISTENT_CONFIG`` features on the requests. And/or
+disable ``SESSION_CONFIG`` and ``TRANSACTION`` features on connection.
+This should be default for many applications. But since scripting DDL
+and database configuration is also a valid use case and since the risk
+of misusing that is quite small we don't include it into the
+specification. Also disabling ``DDL`` and ``PERSISTENT_CONFIG`` features
+should be covered by permissions.
 
 
 External References
