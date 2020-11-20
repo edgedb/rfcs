@@ -93,7 +93,7 @@ Specification
 Connections and Pools
 ---------------------
 
-Instead of exposing a TCP connection to the user we use a set wrapper
+Instead of exposing a TCP connection to the user we use a set of wrapper
 classes:
 
 .. code-block:: python
