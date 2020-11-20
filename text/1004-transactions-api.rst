@@ -613,9 +613,9 @@ Server Availability Timeout
 
 Previously, when TCP connect gets "connection refused" error or when
 timeout happens on handshake both connection and pool API would crash
-the application. This is weird when initially starting an application
-cluster simultaneously with the database, or just when starting a
-projece locally using ``docker-compose up``.
+the application. This can be inconvenient when initially starting an
+application cluster simultaneously with the database, or just when
+starting a project locally using ``docker-compose up``.
 
 This RFC introduces a connection parameter:
 
