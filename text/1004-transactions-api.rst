@@ -624,7 +624,7 @@ This RFC introduces a connection parameter:
     await edgedb.connect('inst1', {wait_until_available_sec: 30})
     await edgedb.createPool('inst1', {
         connectOptions: {
-            waitUntilAvailableMicros: 30,
+            waitUntilAvailableMicros: 30000,
         }
     })
 
