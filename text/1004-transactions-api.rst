@@ -60,8 +60,9 @@ errors.
 
 `More discussion on this topic <https://github.com/edgedb/edgedb/discussions/1708>`_
 
-This part of API change is also motivated by the fact that PostgreSQL
-sometimes can't apply concurrent transactions and errors out with::
+This part of API change is also motivated by the fact that EdgeDB (as is
+PostgreSQL) sometimes can't apply concurrent transactions and errors out
+with::
 
     Error: could not serialize access due to concurrent update
 
@@ -341,7 +342,7 @@ While removing inherent methods with the same name.
 
 Note: while ``Connection.try_transaction`` block is active,
 ``Executor`` methods are disabled on the connection object itself
-(i.e. they throw ``TransactionActiveError``).
+(i.e. they throw ``TransactionIsActiveError``).
 
 Example of the recommended transaction API:
 
@@ -409,12 +410,12 @@ All network error within connection should be converted into
 ``EarlyNetworkError`` or ``NetworkError``. Former is used in context
 where we catch network error before sending a request.
 
-``TransactionActiveError`` is introduced to signal that
+``TransactionIsActiveError`` is introduced to signal that
 queries can't be executed on the connection object:
 
 .. code-block:: typescript
 
-    class TransactionActiveError extends InterfaceError {}
+    class TransactionIsActiveError extends InterfaceError {}
 
 
 Python Transactions API
@@ -552,7 +553,7 @@ Introduce the abstract classes for queries:
 
 Note: while ``Connection.try_transaction`` block is active,
 ``Executor`` methods are disabled on the connection object itself
-(i.e. they throw ``TransactionActiveError``).
+(i.e. they throw ``TransactionIsActiveError``).
 
 These base classes should be implemented by respective classes:
 
@@ -591,13 +592,13 @@ All network error within connection should be converted into
 ``EarlyNetworkError`` or ``NetworkError``. Former is used in context
 where we catch network error before sending a request.
 
-Additionally ``TransactionActiveError`` is introduced to signal that
+Additionally ``TransactionIsActiveError`` is introduced to signal that
 queries can't be executed on the connection object (i.e. when
 connection object is "borrowed" for the duration of the transaction):
 
 .. code-block:: python
 
-    class TransactionActiveError(InterfaceError):
+    class TransactionIsActiveError(InterfaceError):
         _code = 0x_FF_02_01_04
 
 
