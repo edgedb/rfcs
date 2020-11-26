@@ -624,7 +624,7 @@ This RFC introduces a connection parameter:
     await edgedb.connect('inst1', {wait_until_available_sec: 30})
     await edgedb.createPool('inst1', {
         connectOptions: {
-            wait_until_available_sec: 30,
+            waitUntilAvailableMicros: 30,
         }
     })
 
@@ -660,6 +660,9 @@ determines how long individual connect attempt may take. And
 ``wait_until_available`` determines how many such attempts could be
 made (i.e. how many ones fits the time frame).
 
+Default ``wait_until_available`` is 30 seconds or 30000 microseconds
+for JavaScript.
+
 
 EdgeDB Changes
 --------------
@@ -667,9 +670,9 @@ EdgeDB Changes
 To support features above we add two headers to EdgeDB queries:
 
 1. For PrepareComplete_, CommandComplete_ server-side messages:
-   ``SERVER_OPT_HAS_FEATURES``
+   ``COMPILED_QUERY_FEATURES``
 2. For Prepare_, OptimisticExecute_, Execute_, ExecuteScript_
-   client-side messages: ``QUERY_OPT_ALLOW_FEATURES``
+   client-side messages: ``QUERY_ALLOW_FEATURES``
 
 Both contain 64bit bitmap of the following:
 
@@ -681,10 +684,10 @@ Both contain 64bit bitmap of the following:
 5. `PERSISTENT_CONFIG 0b10000` -- server or database config change
 
 In case of ``SERVER_OPT_HAS_FEATURES`` it describes what is actually
-contained in the query. And in case of ``QUERY_OPT_ALLOW_FEATURES``
+contained in the query. And in case of ``QUERY_ALLOW_FEATURES``
 client can specify what of these things are allowed in this query.
 
-Read-only queries are always allowed. When ``QUERY_OPT_ALLOW_FEATURES``
+Read-only queries are always allowed. When ``QUERY_ALLOW_FEATURES``
 is omitted any query is allowed (default). With the bit mask of zero
 only read-only queries are allowed.
 
