@@ -670,34 +670,34 @@ EdgeDB Changes
 To support features above we add two headers to EdgeDB queries:
 
 1. For PrepareComplete_, CommandComplete_ server-side messages:
-   ``COMPILED_QUERY_FEATURES``
+   ``CAPABILITIES``
 2. For Prepare_, OptimisticExecute_, Execute_, ExecuteScript_
-   client-side messages: ``QUERY_ALLOW_FEATURES``
+   client-side messages: ``ALLOW_CAPABILITIES``
 
 Both contain 64bit bitmap of the following:
 
-1. `MODIFICATONS      0b00001` -- query is not read-only
-2. `SESSION_CONFIG    0b00010` -- query contains session config change
-3. `TRANSACTION       0b00100` -- query contains start/commit/rollback
+1. ``MODIFICATONS      0b00001`` -- query is not read-only
+2. ``SESSION_CONFIG    0b00010`` -- query contains session config change
+3. ``TRANSACTION       0b00100`` -- query contains start/commit/rollback
    of transaction or savepoint manipulation
-4. `DDL               0b01000` -- query contains DDL
-5. `PERSISTENT_CONFIG 0b10000` -- server or database config change
+4. ``DDL               0b01000`` -- query contains DDL
+5. ``PERSISTENT_CONFIG 0b10000`` -- server or database config change
 
-In case of ``SERVER_OPT_HAS_FEATURES`` it describes what is actually
-contained in the query. And in case of ``QUERY_ALLOW_FEATURES``
+In case of ``CAPABILITIES`` it describes what is actually
+contained in the query. And in case of ``ALLOW_CAPABILITIES``
 client can specify what of these things are allowed in this query.
 
-Read-only queries are always allowed. When ``QUERY_ALLOW_FEATURES``
+Read-only queries are always allowed. When ``ALLOW_CAPABILITIES``
 is omitted any query is allowed (default). With the bit mask of zero
 only read-only queries are allowed.
 
-``SERVER_OPT_HAS_FEATURES`` is zero for read-only queries (the
+``CAPABILITIES`` is zero for read-only queries (the
 field is present) as it indicates that query has been analyzed.
 
-The ``SERVER_OPT_HAS_FEATURES`` is needed for the following tasks:
+The ``CAPABILITIES`` is needed for the following tasks:
 
 1. Retry standalone (non-transactional) read-only queries
-2. Warn when features are used in inapropriate context (e.g. when
+2. Warn when capabilities are used in inapropriate context (e.g. when
    session modification queries are sent on non-raw connection, which
    means they can be lost at any point due to reconnect)
 
@@ -1039,17 +1039,17 @@ configuration anyway. So it deviates from the usual behavior of context
 manager anyway.
 
 
-Disabling Features
-------------------
+Disabling Capabilities
+----------------------
 
 We may introduce a pool and/or connection configuration to disable
-``DDL`` and ``PERSISTENT_CONFIG`` features on the requests. And/or
-disable ``SESSION_CONFIG`` and ``TRANSACTION`` features on connection.
-This should be default for many applications. But since scripting DDL
-and database configuration is also a valid use case and since the risk
-of misusing that is quite small we don't include it into the
-specification. Also disabling ``DDL`` and ``PERSISTENT_CONFIG`` features
-should be covered by permissions.
+``DDL`` and ``PERSISTENT_CONFIG`` capabilities on the requests. And/or
+disable ``SESSION_CONFIG`` and ``TRANSACTION`` capabilities on
+connection.  This should be default for many applications. But since
+scripting DDL and database configuration is also a valid use case and
+since the risk of misusing that is quite small we don't include it into
+the specification. Also disabling ``DDL`` and ``PERSISTENT_CONFIG``
+capabilities should be covered by permissions.
 
 
 External References
