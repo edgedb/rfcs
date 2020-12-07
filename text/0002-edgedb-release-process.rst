@@ -92,11 +92,13 @@ Server
 External places to bump binaries at
 -----------------------------------
 
-.. this needs more explanation
+1. Update tutorial.edgedb.com to run on the latest release. The package
+   to update is edgedb-cloud/docker/embedded/, use the README there for
+   update instructions. After uploading a new package to ECR, kick the
+   Fargate job by running `edbcloud fargate tutorial/t1 --force`.
 
-1. Update tutorial.edgedb.com to run on the latest release.
-
-2. Update Docker Hub.
+2. Update Docker Hub. This should happen automatically during the server
+   GitHub Action release build (debian-buster).
 
 3. Update the Homebrew tap.
 
