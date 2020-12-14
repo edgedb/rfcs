@@ -53,9 +53,12 @@ CLI
         > See changelog at
         > https://github.com/edgedb/edgedb/blob/master/docs/changelog/1_0_a6.rst
 
+    - git push --follow-tags
+
 3. Start the release flow by going to:
 
     - https://github.com/edgedb/edgedb-cli/actions?query=workflow%3A%22Build%2C+Test%2C+and+Publish+a+Release%22
+    - select the newly pushed release branch from the dropdown and press "Run Workflow"
 
 Server
 ------
@@ -79,9 +82,12 @@ Server
         > See changelog at
         > https://github.com/edgedb/edgedb/blob/master/docs/changelog/1_0_a6.rst
 
+    - git push --follow-tags
+
 4. Start the release flow by going to:
 
     - https://github.com/edgedb/edgedb/actions?query=workflow%3A%22Build+Test+and+Publish+a+Release%22
+    - select the newly pushed release branch from the dropdown and press "Run Workflow"
 
 5. When all is good, you can check out the tag locally, build EdgeDB
    and run `edb gen-test-dumps` to generate test dumps for the version
