@@ -6,9 +6,9 @@
     Authors: Paul Colomiets <paul@colomiets.name>
     RFC PR: `edgedb/rfcs#0004 <https://github.com/edgedb/rfcs/pull/19>`_
 
-==============================
-RFC 0004: Robust Client API
-==============================
+===========================
+RFC 1004: Robust Client API
+===========================
 
 
 Abstract
