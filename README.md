@@ -7,9 +7,9 @@ To read more on when and how to submit an RFC document, see RFC 1.
 [//]: # "NOTE: This section is auto-generated with update_index.py"
 
 ### Current Drafts
-* [RFC 4 - Transactions API](./text/1004-transactions-api.rst)
 * [RFC 1000 - Migrations](./text/1000-migrations.rst)
 * [RFC 1001 - CLI for installation and control of local EdgeDB server](./text/1001-edgedb-server-control.rst)
+* [RFC 1003 - Consistent CLI Design](./text/1003-cli-naming.rst)
 * [RFC 1004 - Robust Client API](./text/1004-transactions-api.rst)
 
 ### Accepted
