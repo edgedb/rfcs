@@ -65,6 +65,8 @@ actions are listed right away.  If the output exceeds the current height
 of the terminal, an effective solution is to use a pager, as done by
 ``git`` and many other tools.  More initial help output allows for
 quicker search of not only command names but also command descriptions.
+An alternative short single-page output is provided when ``-h`` is
+specified (this is what Git does).
 
 Command-line design doesn't really follow EdgeQL
 ------------------------------------------------
@@ -171,42 +173,6 @@ directly manipulate with other sub-commands. This includes:
 
 * ``list-roles`` (through ``alter-role``).
 
-Other listings should be removed as they are redundant with REPL
-functionality. Instead, the following form should be enabled::
-
-  $ echo "\list-object-types" | edgedb
-
-This is consistent with behavior of, say, the ``sqlite3`` CLI.
-
-The REPL help for ``\\`` commands is overloaded
------------------------------------------------
-
-**Concern**: It is convenient to expose the EdgeDB CLI commands directly in
-REPL. This can greatly simplify administrative tasks when the DB
-administrator has full DB admin rights but yet can't access the server shell.
-Sadly, the presence of those commands under the ``\\`` prefix mixes them
-up with the REPL-specific escape commands like ``\last-error``.
-
-**Decision**: Expose CLI-specific commands in the REPL via the ``!`` prefix,
-similar to how IPython exposes shell commands::
-
-  >>> \list-databases
-  tutorial
-
-  >>> SELECT 1;
-  {1}
-
-  >>> !dump db tutorial
-  done
-
-This way the internal REPL help system is not overloaded with rarely
-needed help on CLI commands and would only show the list of convenient ``\``
-commands with a hint that ``!help`` or ``!h`` can be used to list
-all CLI options.
-
-Name-spacing ``\help`` and ``!help`` is good for the usability, because
-the latter set of commands is not going to be used as frequently as
-the former.
 
 Connection options are passed in an unnatural spot
 --------------------------------------------------
@@ -231,8 +197,8 @@ for instance::
 
   $ edgedb -d tutorial dump tutorial.edgedb
 
-**Decision**: Passing *connection* options should be allowed anywhere
-between ``edgedb`` and sub-commands, enabling the following::
+**Under consideration**: Passing *connection* options could be allowed
+anywhere between ``edgedb`` and sub-commands, enabling the following::
 
   $ edgedb dump -d tutorial tutorial.edgedb
   $ edgedb dump tutorial.edgedb -d tutorial
@@ -242,6 +208,10 @@ receive the DB name as part of their ``[COMMAND-FLAGS]``.
 
 Allowing connection options to come last also simplifies copy-pasting
 them, which is especially useful for full DSNs.
+
+There's open discussion currently around specifics of those global
+options, their propagation, and conflicts with sub-command options
+using the same names.
 
 
 Rejected Ideas
@@ -307,21 +277,37 @@ This is rejected due to:
 Read "Appendix 2" for research conducted in this area.
 
 
-Expose REPL-specific commands via the ``\`` prefix
---------------------------------------------------
+Expose CLI-specific commands in the REPL via the ``!`` prefix
+-------------------------------------------------------------
 
-Examples::
+The suggested syntax separated internal escaped commands::
 
-  \d [-v] NAME             describe schema object
-  \l, \list-databases      list databases
-  \lT [-sI] [PATTERN]      list scalar types
-                           (alias: \list-scalar-types)
-  <...>
+  >>> \list-databases
+  tutorial
 
-This is rejected due to there being too many backslash commands
-(currently 44), some of which duplicate CLI functionality.
+and CLI-derived commands::
 
-(See Concern about ``\`` prefix being overloaded with CLI commands.)
+  >>> !dump db tutorial
+  done
+
+The idea was that through this separation the internal REPL help system is
+not overloaded with rarely needed help on CLI commands and would only show
+the list of convenient ``\`` commands with a hint that ``!help`` or ``!h``
+can be used to list all CLI options. Name-spacing ``\help`` and ``!help``
+could be good for usability, because the latter set of commands is not going
+to be used as frequently as the former.
+
+This was rejected because the usability claims were not in fact universally
+accepted. An important concern was that two schemes of escaped commands would
+increase user confusion, making them search for some commands twice. In the
+end EdgeDB CLI would have to implement a scheme like::
+
+  some-db> \dump my.dump
+  No such command `dump`.
+  Did you mean `!dump`?
+  > !list-databases
+  Do such command `list-databases`
+  Did you mean `\list-databases`?
 
 
 Appendix 1: Current CLI state as of 1.0a7
