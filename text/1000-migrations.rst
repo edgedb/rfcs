@@ -329,15 +329,19 @@ The returned JSON conforms to the following pseudo-schema::
       // the migration script.
       "proposed": {
         "statements": [{
-          "text": "<stmt text template>",
-          "required-user-input": [{
-            "name": "<placeholder variable>",
-            "prompt": "<statement prompt>",
-          }]
+          "text": "<stmt text template>"
         }],
+        "required-user-input": [
+          {
+            "placeholder": "<placeholder variable>",
+            "prompt": "<statement prompt>",
+          },
+          ...
+        ]
         "confidence": (0..1), // confidence coefficient
-        "prompt": "<variant prompt>",
-        "safe": {true|false}
+        "prompt": "<operation prompt>",
+        "prompt_id": "<prompt id>",
+        "data_safe": {true|false}
       }
     }
 
@@ -346,7 +350,7 @@ The returned JSON conforms to the following pseudo-schema::
       <stmt text>:
         Regular statement text.
       <stmt text template>:
-        Statement text template with interpolation points using the \(name)
+        Statement text template with interpolation points using the ``\(name)``
         syntax.  The client should treat templates and variables as strings
         and perform string interpolation.
       <placeholder variable>:
@@ -354,8 +358,11 @@ The returned JSON conforms to the following pseudo-schema::
         for which the user prompt is given.
       <statement prompt>:
         The text of a user prompt for an interpolation variable.
-      <variant prompt>:
-        Prompt for the proposed migration step variant.
+      <operation prompt>:
+        Prompt for the proposed migration step.
+      <prompt id>:
+        An opaque string identifier for a particular operation prompt.
+        The client should not repeat prompts with the same prompt id.
 
 Example::
 
