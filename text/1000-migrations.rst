@@ -331,7 +331,7 @@ The returned JSON conforms to the following pseudo-schema::
         "statements": [{
           "text": "<stmt text template>"
         }],
-        "required-user-input": [
+        "required_user_input": [
           {
             "placeholder": "<placeholder variable>",
             "prompt": "<statement prompt>",
@@ -380,7 +380,7 @@ Example::
           "text": "ALTER TYPE Address " +
                   "ALTER PROPERTY number " +
                   "SET TYPE int64 USING \(expr)",
-          "required-user-input": [{
+          "required_user_input": [{
             "name": "expr",
             "prompt": "Altering Address.number to type " +
                       "int64 requires an explicit conversion expression",
