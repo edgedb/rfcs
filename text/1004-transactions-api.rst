@@ -137,8 +137,8 @@ Both ``AsyncIOPool`` and ``AsyncIOConnection`` have:
    (implement ``Executor`` abstract class defined below). All the
    methods reconnect if called on broken connection. Read-only queries
    broken in the middle of the query are retried.
-2. ``retry`` method (described below)
-3. ``try_transaction`` method for more fine-grained control over
+2. ``retrying_transaction`` method (described below)
+3. ``raw_transaction`` method for more fine-grained control over
    transactions (this is older ``transaction`` method, see below)
 
 ``ReadOnly*`` counterparts differ from non-read-only ones in two
@@ -176,14 +176,23 @@ Here are method signatures:
 
     class AsyncIOConnection:
         ...
-        async def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
-        async def with_session_config(self, **config) -> Connection: ...
-        async def with_transaction_options(self, isolation: ...) -> Connection: ...
-        async def with_retry_options(self, attempts: int = 3, ...) -> Connection: ...
+        async def read_only(self, primary: bool = false) -> \
+            ReadOnlyConnection: ...
+
+        async def with_session_config(self, **config) -> \
+            Connection: ...
+
+        async def with_transaction_options(self, isolation: ...) -> \
+            Connection: ...
+
+        async def with_retry_options(self, attempts: int = 3, ...) -> \
+            Connection: ...
 
     class AsyncIOPool:
         ...
-        async def read_only(self, primary: bool = false) -> ReadOnlyConnection: ...
+        async def read_only(self, primary: bool = false) -> \
+            ReadOnlyConnection: ...
+
         async def with_session_config(self, **config) -> Pool: ...
         async def with_transaction_options(self, isolation: ...) -> Pool: ...
         async def with_retry_options(self, attempts: int = 3, ...) -> Pool: ...
@@ -251,18 +260,18 @@ General idea of the feature:
 3. Repeat the block within a new transaction until succeeds or attempt
    number is exhausted
 
-The block is introduced by ``connection_pool.retry``, the exact code
-is different for different languages because of language limitations
-and convetions.
+The block is introduced by ``connection_pool.retrying_transaction``,
+the exact code is different for different languages because of language
+limitations and convetions.
 
 Normal transactions that aren't retried are executed with
-``try_transaction`` method.
+``raw_transaction`` method.
 
-The ``retry`` function configured by the number of attempts and backoff
-function. This is configured by calling ``with_retry_options`` prior
-to the ``retry`` function. Former can be called prior to setting global
-connection pool variable to achieve global setting, or can be called at
-any time to achieve needed granularity for this setting.
+The ``retrying_transaction`` function configured by the number of attempts
+and backoff function. This is configured by calling ``with_retry_options``
+prior to the ``retrying_transaction`` function. Former can be called prior
+to setting global connection pool variable to achieve global setting, or can
+be called at any time to achieve needed granularity for this setting.
 
 Current attempt number N is global. Which means if the last error is a
 deadlock and N is greater than the number of attempts on a deadlock we
@@ -275,7 +284,8 @@ Technically:
 
 * In JavaScript: ``n => (2**n) * 100 + Math.random()*100``
 * In Python: ``lambda n: (2**n) * 0.1 + randrange(100)*0.1`` (seconds)
-* In Rust: ``|n| Duration::from_millis(2u64.pow(n)*100 + thread_rng().gen_range(0,100)``
+* In Rust:
+  ``|n| Duration::from_millis(2u64.pow(n)*100 + thread_rng().gen_range(0,100)``
 
 Backoff is randomized so that if there was a coordinated failure (i.e.
 server restart which triggers all current transactions to retry)
@@ -295,23 +305,23 @@ TypeScript Transactions API
 
     interface Pool {
         async retry<T>(block: TransactionBlock): Promise<T>;
-        async try_transaction<T>(action: TransactionBlock): Promise<T>;
+        async raw_transaction<T>(action: TransactionBlock): Promise<T>;
     }
     class Connection {
         async retry<T>(block: TransactionBlock): Promise<T>;
-        async try_transaction<T>(action: TransactionBlock): Promise<T>;
+        async raw_transaction<T>(action: TransactionBlock): Promise<T>;
     }
 
-Raw connection has only ``try_transaction`` method:
+Raw connection has only ``raw_transaction`` method:
 
     class RawConnection {
-        async try_transaction<T>(
+        async raw_transaction<T>(
             action: TransactionBlock,
             options?: TransactionOptions,
         ): Promise<T>;
     }
 
-Note: transaction options are passed directly to ``try_transaction`` as
+Note: transaction options are passed directly to ``raw_transaction`` as
 it doesn't have ``with_transaction_options`` method.
 
 Introduce interface for making queries:
@@ -340,7 +350,7 @@ And implement interface by respective classes:
 
 While removing inherent methods with the same name.
 
-Note: while ``Connection.try_transaction`` block is active,
+Note: while ``Connection.raw_transaction`` block is active,
 ``Executor`` methods are disabled on the connection object itself
 (i.e. they throw ``TransactionIsActiveError``).
 
@@ -348,14 +358,14 @@ Example of the recommended transaction API:
 
 .. code-block:: typescript
 
-    await pool.retry(tx => {
+    await pool.retrying_transaction(tx => {
         let val = await tx.query("...")
         await tx.execute("...", process_value(val))
     })
 
-Example using ``try_transaction``:
+Example using ``raw_transaction``:
 
-    await pool.try_transaction(tx => {
+    await pool.raw_transaction(tx => {
         let val = await tx.query("...")
         await tx.execute("...", process_value(val))
     })
@@ -366,8 +376,9 @@ itself.
 
 **Deprecate** ``transaction()`` method::
 
-    `connection.transaction(f)` is deprecated. Use `pool.retry(f)`
-    (preferred) or `connection.try_transaction(f)`.
+    `connection.transaction(f)` is deprecated. Use
+    `pool.retrying_transcation(f)` (preferred) or
+    `connection.raw_transaction(f)`.
 
 The ``RetryOptions`` signature:
 
@@ -429,70 +440,78 @@ Pool methods for creating a transaction:
 .. code-block:: python
 
    class AsyncIOPool:
-       def retry() -> AsyncIterable[AsyncContextManager[AsyncIOTransaction]]: ...
-       async def try_transaction(*,
+       def retryingTransaction() -> \
+           AsyncIterable[AsyncContextManager[AsyncIOTransaction]]: ...
+
+       async def raw_transaction(*,
            isolation: str = None,
            read_only: bool = None,
            deferrable: bool = None,
        ) -> AsyncContextManager[AsyncIOTransaction]: ...
 
    class AsyncIOConnection:
-       def retry() -> AsyncIterable[AsyncContextManager[AsyncIOTransaction]]: ...
-       async def try_transaction(*,
+       def retrying_transaction() -> \
+           AsyncIterable[AsyncContextManager[AsyncIOTransaction]]: ...
+
+       async def raw_transaction(*,
            isolation: str = None,
            read_only: bool = None,
            deferrable: bool = None,
        ) -> AsyncContextManager[AsyncIOTransaction]: ...
 
    class Pool:
-       def retry() -> Iterable[ContextManager[Transaction]]: ...
-       def try_transaction(
+       def retrying_transaction() -> \
+           Iterable[ContextManager[Transaction]]: ...
+
+       def raw_transaction(
            isolation: str = None,
            read_only: bool = None,
            deferrable: bool = None,
        ) -> ContextManager[Transaction]: ...
 
    class Connection:
-       def retry() -> Iterable[ContextManager[Transaction]]: ...
-       def try_transaction(
+       def retrying_transaction() -> \
+           Iterable[ContextManager[Transaction]]: ...
+
+       def raw_transaction(
            isolation: str = None,
            read_only: bool = None,
            deferrable: bool = None,
        ) -> ContextManager[Transaction]: ...
 
 
-Example usage of ``retry`` on async pool:
+Example usage of ``retrying_transaction`` on async pool:
 
 .. code-block:: python
 
-    async for tx in db.retry():
+    async for tx in db.retrying_transaction():
       async with tx:
         let val = await tx.query("...")
         await tx.execute("...", process_value(val))
 
-Example usage of ``retry`` on sync pool:
+Example usage of ``retrying_transaction`` on sync pool:
 
 .. code-block:: python
 
-    for tx in db.retry():
+    for tx in db.retrying_transaction():
       with tx:
         let val = tx.query("...")
         tx.execute("...", process_value(val))
 
 This works roughly as follows:
 
-1. ``retry()`` returns an (async-)iterator which has no methods.
+1. ``retrying_transaction()`` returns an (async-)iterator which has no methods.
 2. Every yielded element is a transaction object, strongly referencing
    the iterator that created it internally.
 3. If the code in the ``async with`` / ```with`` block succeeds,
    the transaction object messages its iterator to stop iteration.
 
 
-Example of ``try_transaction``:
+Example of ``raw_transaction``:
 
 .. code-block:: python
 
-      async with db.try_transaction() as tx:
+      async with db.raw_transaction() as tx:
         let val = await tx.query("...")
         await tx.execute("...", process_value(val))
 
@@ -503,7 +522,7 @@ itself.
 **Deprecate** old transaction API::
 
     DeprecationWarning: `connection.transaction()` is deprecated. Use
-    `pool.retry()` (preferred) or `connection.try_transaction()`.
+    `pool.retrying_transaction()` (preferred) or `connection.raw_transaction()`.
 
 Add ``RetryOptions`` class:
 
@@ -551,7 +570,7 @@ Introduce the abstract classes for queries:
     class ReadOnlyExecutor(ReadOnlyExecutor):
         pass
 
-Note: while ``Connection.try_transaction`` block is active,
+Note: while ``Connection.raw_transaction`` block is active,
 ``Executor`` methods are disabled on the connection object itself
 (i.e. they throw ``TransactionIsActiveError``).
 
@@ -639,8 +658,8 @@ The semantics are the following:
    connection might try to reconnect multiple times) and error is thrown
    after the specified timeout as a result of the operation that
    requires connection (i.e. on query or transaction start).
-4. For ``retry`` we bail out if this timeout is reached during any
-   single reconnect. We don't retry immediately after database is marked
+4. For ``retrying_transaction`` we bail out if this timeout is reached during
+   any single reconnect. We don't retry immediately after database is marked
    as unavailable.
 5. Subsequent queries or transactions after failure will retry for the
    specified timeout each time.
@@ -711,8 +730,8 @@ By default:
 5. Everything is allowed in ``RawConnection``
 
 Note: session settings and transactions should be activated using
-special methods ``with_session_config``, ``try_transaction`` and
-``retry``, rather than by using ``execute(...)`` or ``query(...)`` in
+special methods ``with_session_config``, ``raw_transaction`` and
+``retrying_transaction``, rather than by using ``execute(...)`` or ``query(...)`` in
 the former case they are allowed internally. And this should be
 indicated in the respective error messages.
 
@@ -748,7 +767,7 @@ And this can be done on transaction level too:
 
 .. code-block:: python
 
-    async for tx in db.retry():
+    async for tx in db.retrying_transaction():
       async with tx:
         tx = tx.with_metadata(
             uri=request.uri,
@@ -785,7 +804,7 @@ this for writes:
 .. code-block:: python
 
     async def save(conn):
-        async for tx in conn.with_modifications().retry():
+        async for tx in conn.with_modifications().retrying_transaction():
           async with tx:
             ...
 
@@ -801,13 +820,13 @@ Except the read_only configuration.
 Learning Curve
 ==============
 
-The ``retry`` method complicates the learning curve, but:
+The ``retrying_transaction()`` method complicates the learning curve, but:
 
 1. Letting the application to error out instead of automatically
    retrying certain transactions is a wildly known, yet an entirely
    preventable problem.
-2. The design of the proposed ``retry()`` method emphasizes that the
-   code block might be executed more than one time, suggesting to the
+2. The design of the proposed ``retrying_transaction()`` method emphasizes
+   that the code block might be executed more than one time, suggesting to the
    user to factor out slow blocking code, like making API calls over
    network. This ensures that DB transactions would not be open longer
    than it is necessary.
@@ -829,7 +848,7 @@ Alternatives
 Alternative Names
 -----------------
 
-For ``retry`` method:
+For ``retrying_transaction`` method:
 
 1. ``db.atomic(t => t.execute(..))``
 2. ``db.mutate(transaction => transaction.execute(..))``
@@ -839,9 +858,9 @@ For ``retry`` method:
 6. ``db.try(transaction => transaction.execute(..))``
 7. ``db.retry_transaction(t => t.execute(..))``
 
-For ``try_transaction`` method:
+For ``raw_transaction`` method:
 
-1. ``with db.raw_transaction() as t:``
+1. ``with db.try_transaction() as t:``
 2. ``with db.plain_transaction() as t:``
 3. ``with db.unreliable_transaction() as t:``
 4. ``with db.single_transaction() as t:``
@@ -879,7 +898,7 @@ And/or decorator API:
         return render_page(val)
 
 Function call API has the issue of variables are propagated either
-are parameters to ``retry`` function itself or force users using
+are parameters to ``retrying_transaction`` function itself or force users using
 ``partial``.
 
 While decorator API doesn't work for async code or at least requires
@@ -984,8 +1003,8 @@ But here is an example where retrying single ``.query()`` is wrong:
 In some cases, retrying the second ``query()`` alone yields negative
 money or a constraint violation error, but retrying the whole block
 wrapped into a transaction is always safe. Therefore our recommendation
-to users would be to use the new ``retry()`` API when they know that the
-query would be safe to repeat.
+to users would be to use the new ``retrying_transaction()`` API when they
+know that the query would be safe to repeat.
 
 
 Use Context Manager
