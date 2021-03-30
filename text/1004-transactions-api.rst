@@ -305,17 +305,17 @@ TypeScript Transactions API
 
     interface Pool {
         async retry<T>(block: TransactionBlock): Promise<T>;
-        async raw_transaction<T>(action: TransactionBlock): Promise<T>;
+        async rawTransaction<T>(action: TransactionBlock): Promise<T>;
     }
     class Connection {
         async retry<T>(block: TransactionBlock): Promise<T>;
-        async raw_transaction<T>(action: TransactionBlock): Promise<T>;
+        async rawTransaction<T>(action: TransactionBlock): Promise<T>;
     }
 
-Raw connection has only ``raw_transaction`` method:
+Raw connection has only ``rawTransaction`` method:
 
     class RawConnection {
-        async raw_transaction<T>(
+        async rawTransaction<T>(
             action: TransactionBlock,
             options?: TransactionOptions,
         ): Promise<T>;
@@ -350,7 +350,7 @@ And implement interface by respective classes:
 
 While removing inherent methods with the same name.
 
-Note: while ``Connection.raw_transaction`` block is active,
+Note: while ``Connection.rawTransaction`` block is active,
 ``Executor`` methods are disabled on the connection object itself
 (i.e. they throw ``TransactionIsActiveError``).
 
@@ -358,14 +358,14 @@ Example of the recommended transaction API:
 
 .. code-block:: typescript
 
-    await pool.retrying_transaction(tx => {
+    await pool.retryingTransaction(tx => {
         let val = await tx.query("...")
         await tx.execute("...", process_value(val))
     })
 
-Example using ``raw_transaction``:
+Example using ``rawTransaction``:
 
-    await pool.raw_transaction(tx => {
+    await pool.rawRransaction(tx => {
         let val = await tx.query("...")
         await tx.execute("...", process_value(val))
     })
@@ -377,8 +377,8 @@ itself.
 **Deprecate** ``transaction()`` method::
 
     `connection.transaction(f)` is deprecated. Use
-    `pool.retrying_transcation(f)` (preferred) or
-    `connection.raw_transaction(f)`.
+    `pool.retryingTranscation(f)` (preferred) or
+    `connection.rawTransaction(f)`.
 
 The ``RetryOptions`` signature:
 
@@ -402,6 +402,116 @@ The ``RetryOptions`` signature:
         ): RetryOptions;
     }
 
+
+Subtransactions API
+'''''''''''''''''''
+
+Subtransaction API is only accessible on the transaction and subtranssaction
+objects:
+
+.. code-block:: typescript
+
+    type SubtransactionBlock = (Subtransaction) => Promise<T>;
+    class Transaction {
+        async subtransaction<T>(action: TransactionBlock): Promise<T>;
+    }
+    class Subtransaction extends Executor {
+        async subtransaction<T>(action: TransactionBlock): Promise<T>;
+        async rollback(): Promise<void>;
+    }
+
+Subtransaction objects also implement ``Executor`` interface.
+
+Example using ``subtransaction``:
+
+.. code-block:: typescript
+
+    await pool.retryingTransaction(tx => {
+        try {
+            await tx.subtransaction(subtx => {
+                await subtx.query(`
+                    INSERT Note { name := <str>$name, text := <str>$text }
+                `, {name, text})
+            })
+        } catch(e) {
+            if(e instanceof ConstraintViolationError) {
+                await tx.subtransaction(subtx => {
+                    await subtx.query(`
+                        UPDATE Note
+                        FILTER .name = <str>$name
+                        SET { text := <str>$text }
+                    `, {name, text})
+                })
+            } else {
+                raise e
+            }
+        }
+    })
+
+Note:
+
+1. Transaction object is "borrowed" for the duration of subtransaction,
+   you can't execute queries on original transaction object when subtransaction
+   is active.
+2. Catching errors needs some care, in particular, errors that induce retry of
+   the whole transaction (e.g. disconnect) should propatate to the retry loop.
+   So it's recommeded to pick the most specific error in the catch statement
+   and reraise everything else.
+
+Example using connection instead of pool:
+
+.. code-block:: typescript
+
+    async conn.retryingTransaction(tx => {
+        async tx.subtransaction(subtx => {
+            async with tx.subtransaction(subtx => {
+                await subtx.query(`
+                    INSERT Note { name := <str>$name, text := <str>$text }
+                `, {name, text})
+            })
+        })
+    })
+
+In this example, both ``conn`` and ``tx`` can't be used while subtransaction
+is active.
+
+Subtransactions can be nested:
+
+.. code-block:: typescript
+
+    await tx.subtransaction(tx1 => {
+        await tx1.subtransaction(tx2 => {
+            tx2.query("...")
+        })
+    })
+
+Subtransactions can be rolled back without without closing, for first example
+in this section could be rewritten as:
+
+.. code-block:: typescript
+
+    await tx.subtransaction(subtx => {
+        try {
+            await subtx.query(`
+                INSERT Note { name := <str>$name, text := <str>$text }
+            `, {name, text})
+        } catch(e) {
+            if(e instanceof ConstraintViolationError) {
+
+                // Rolling back subtransaction
+                await subtx.rollback()
+
+                // Executing new query in the same subtransaction
+                await subtx.query(`
+                    UPDATE Note
+                    FILTER .name = <str>$name
+                    SET { text := <str>$text }
+                `, {name, text})
+            } else {
+                raise e
+            }
+        }
+    })
 
 Exceptions API
 ''''''''''''''
@@ -440,7 +550,7 @@ Pool methods for creating a transaction:
 .. code-block:: python
 
    class AsyncIOPool:
-       def retryingTransaction() -> \
+       def retrying_transaction() -> \
            AsyncIterable[AsyncContextManager[AsyncIOTransaction]]: ...
 
        async def raw_transaction(*,
@@ -590,6 +700,97 @@ These base classes should be implemented by respective classes:
     class ReadOnlyTransaction(ReadOnlyExecutor): ...
     class ReadOnlyConnection(ReadOnlyExecutor): ...
     class ReadOnlyPool(ReadOnlyExecutor): ...
+
+
+Subtransactions API
+'''''''''''''''''''
+
+Subtransaction API is only accessible on the transaction and subtransaction
+objects:
+
+.. code-block:: python
+
+    class AsyncIOTransaction:
+        async def subtransaction() -> AsyncIOSubtransaction: ...
+
+    class AsyncIOSubtransaction(Executor):
+        async def subtransaction() -> AsyncIOSubtransaction: ...
+        async def rollback() -> None: ...
+
+Subtransaction objects also implement ``Executor`` interface.
+
+Example using ``subtransaction``:
+
+.. code-block:: python
+
+    async for tx in pool.retry():
+        async with tx:
+            try:
+                async with tx.subtransaction() as subtx:
+                    await subtx.query('''
+                        INSERT Note { name := <str>$name, text := <str>$text }
+                    ''', name=name, text=text)
+            except ConstraintViolationError:
+                async with tx.subtransaction() as subtx:
+                    await subtx.query('''
+                        UPDATE Note
+                        FILTER .name = <str>$name
+                        SET { text := <str>$text }
+                    ''', name=name, text=text)
+
+Note:
+
+1. Transaction object is "borrowed" for the duration of subtransaction,
+   you can't execute queries on original transaction object when subtransaction
+   is active.
+2. Catching errors needs some care, in particular, errors that induce retry of
+   the whole transaction (e.g. disconnect) should propatate to the retry loop.
+   So it's recommeded to pick the most specific error in the ``except``
+   statement.
+
+Example using connection instead of pool:
+
+.. code-block:: python
+
+    async for tx in conn.retry():
+        async with tx:
+            async with tx.subtransaction() as subtx:
+                await subtx.query('''
+                    INSERT Note { name := <str>$name, text := <str>$text }
+                ''', name=name, text=text)
+
+In this example, both ``conn`` and ``tx`` can't be used while subtransaction
+is active.
+
+Subtransactions can be nested:
+
+.. code-block:: python
+
+    async with tx.subtransaction() as tx1:
+        async with tx1.subtransaction() as tx2:
+            await tx2.query("...")
+
+Subtransactions can be rolled back without without closing, for first example
+in this section could be rewritten as:
+
+.. code-block:: python
+
+    async with tx.subtransaction() as subtx:
+        try:
+            await subtx.query('''
+                INSERT Note { name := <str>$name, text := <str>$text }
+            ''', name=name, text=text)
+        except ConstraintViolationError:
+
+            # Rolling back subtransaction
+            await subtx.rollback()
+
+            # Executing new query in the same subtransaction
+            await subtx.query('''
+                UPDATE Note
+                FILTER .name = <str>$name
+                SET { text := <str>$text }
+            ''', name=name, text=text)
 
 
 Exceptions API
@@ -1056,6 +1257,40 @@ is failed in the middle of the block:
 The implementation should reconnect and reapply the session
 configuration anyway. So it deviates from the usual behavior of context
 manager anyway.
+
+Seamless Subtransaction API
+---------------------------
+
+Old API allowed nesting ``transaction()`` calls seamlessly:
+
+.. code-block:: python
+
+    with conn.transaction():  # this is an actual transaction
+        with conn.transaction():  # this is a savepoint
+            ...
+
+But this isn't great with ``retry/try_transaction``, because we want
+top-level block to be ``retry()`` block and nested blocks to be savepoints.
+
+This still allows composition of subtransactions themselves:
+
+.. code-block:: python
+
+    for tx in conn.retry():
+        with tx:
+            with tx.subtransaction():
+                with tx.subtransaction():
+                    ...
+
+We could also borrow transaction for a subtransaction:
+
+.. code-block:: python
+
+    with tx.subtransaction() as tx1:
+        with tx1.subtransaction() as tx2:
+            tx2.query('...')
+
+But this doesn't seem to add enough value.
 
 
 Disabling Capabilities
