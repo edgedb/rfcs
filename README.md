@@ -11,6 +11,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 * [RFC 1001 - CLI for installation and control of local EdgeDB server](./text/1001-edgedb-server-control.rst)
 * [RFC 1003 - Consistent CLI Design](./text/1003-cli-naming.rst)
 * [RFC 1004 - Robust Client API](./text/1004-transactions-api.rst)
+* [RFC 1005 - CLI and conventions for local projects using EdgeDB](./text/1005-edgedb-project.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
