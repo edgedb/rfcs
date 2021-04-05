@@ -58,7 +58,7 @@ the ``edgedb project`` prefix:
 * ``edgedb project init`` -- populate a new project or initialize an existing
   cloned object;
 
-* ``edgedb project deinit`` -- remove association with and optionally destroy
+* ``edgedb project unlink`` -- remove association with and optionally destroy
   the linked EdgeDB instance;
 
 * ``edgedb project status`` -- show EdgeDB-related information about a
@@ -83,10 +83,13 @@ TOML::
 
     [edgedb]
     server-version = <semver-range>
+    schema-directory = <schema-dir>
 
-Here, the `server-version` attribute specifies a SemVer range of acceptable
+Here, the ``server-version`` attribute specifies a SemVer range of acceptable
 server versions.  Most frequently this would be in the form of a minimum
-required version.
+required version.  The ``schema-directory`` attribute specifies the location
+of EdgeDB schema directory relative to ``edgedb.toml``.  Defaults to
+``dbschema``.
 
 Project detection
 -----------------
@@ -120,8 +123,8 @@ The project -> instance mapping is expressed as directories under
 
 Here ``<dir-basename>`` is the trailing component of the path to the project
 directory, and ``<dir-abspath-hash>`` is defined as
-``lower(strip(base32(abspath(project_dir)), '==='))```.  Hashing is necessary
-to avoid bumping into the maximum directory entry name length.
+```lower(strip(base32(sha1(abspath(project_dir))), '==='))```.  Hashing is
+necessary to avoid bumping into the maximum directory entry name length.
 The ``project-path`` file contains the full absolute path to the project
 directory and is necessary for reverse lookup (find project by instance name),
 and the ``instance-name`` file contains the name of the associated instance.
@@ -143,7 +146,7 @@ Effect on ``edgedb server`` commands
 
 The ``edgedb server destroy`` command should refuse to destroy an instance that
 is associated with a project by default, and should recommend to use
-``edgedb project deinit`` (or ``edgedb server destroy --force``).
+``edgedb project unlink`` (or ``edgedb server destroy --force``).
 
 The ``edgedb server upgrade`` command should refuse to continue if the target
 server version does not match the ``edgedb.server-version`` range in
@@ -178,13 +181,15 @@ Options
   Specifies the EdgeDB server instance to be associated with the project.
   If the specified instance does not exist, it will be created.  If the
   specified instance already exists, it must not be associated with another
-  project.  ``edgedb server deinit`` may be used to disassociate an instance
+  project.  ``edgedb project unlink`` may be used to disassociate an instance
   prior to linking it with another project.
 
 ``--server-instance-type=<instance-type>``
-  Specifies the desired instance type.  Allowed values for ``<instance-type>``
-  are: ``native`` and ``docker``, which correspond to the installation modes
-  in ``edgedb server``.
+  Specifies the desired instance type.  Current allowed value for
+  ``<instance-type>`` is ``local`` (future additions include ``cloud``)
+
+``--server-install-mode=<install-mode>``
+  Corresponds to the local installation modes in ``edgedb server``.
 
 ``--non-interactive``
   Run in non-interactive mode.
@@ -278,7 +283,7 @@ Here's a simulation of a proposed interactive mode for a cloned project::
     Running migrations ...
 
 
-edgedb project deinit
+edgedb project unlink
 =====================
 
 Remove association with and optionally destroy the linked EdgeDB intstance.
@@ -286,7 +291,7 @@ Remove association with and optionally destroy the linked EdgeDB intstance.
 Synopsis
 --------
 
-``edgedb project deinit [options]``
+``edgedb project unlink [options]``
 
 Options
 -------
@@ -305,7 +310,7 @@ Options
 Implementation
 --------------
 
-The ``edgedb project deinit`` command removes the association with its EdgeDB
+The ``edgedb project unlink`` command removes the association with its EdgeDB
 instance by removing the corresponding entry from the ``~/.edgedb/projects``
 directory.  If ``--destroy-server-instance`` is specified, the associated
 instance is destroyed.
@@ -314,7 +319,8 @@ instance is destroyed.
 edgedb project status
 =====================
 
-Shows the information about a project.
+Shows the information about a project.  Includes information about the
+associated instance name, its status, as well as the migration status.
 
 Synopsis
 --------
@@ -416,3 +422,7 @@ EdgeDB instance.  The idea was rejected as it complicates project forks,
 because one has to remember to change the project id, and, most importantly,
 once the project has been shared, the project id must not be changed to
 avoid breaking project clones.
+
+Finally, *global* uniqueness is actually no necessary, we only care about
+local uniqueness, which is perfectly solved by using filesystem paths as
+keys.
