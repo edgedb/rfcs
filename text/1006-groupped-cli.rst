@@ -168,7 +168,7 @@ Most of the time they are being accessed from REPL, e.g.::
     db> \lt                     # list object types shorcut
     db> \list-object-types      # the full command
 
-Using them from the CLI is less likely, but not exposing the to the CLI at
+Using them from the CLI is less likely, but not exposing them to the CLI at
 all seems very limiting. Therefore we propose the following:
 
 * Inspect commands will be exposed **to the CLI** via the ``edgedb inspect``
