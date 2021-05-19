@@ -1,8 +1,8 @@
 ::
 
     Status: Draft
-    Type: Guideline
-    Created: 2021-05-17
+    Type: Feature
+    Created: 2021-05-19
     Supersedes: RFC 1003: Consistent CLI Design
 
 
