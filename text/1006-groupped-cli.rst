@@ -1,0 +1,240 @@
+::
+
+    Status: Draft
+    Type: Guideline
+    Created: 2021-05-17
+    Supersedes: RFC 1003: Consistent CLI Design
+
+
+===============================
+RFC 1006: Simplified CLI Design
+===============================
+
+This RFC proposes to change the EdgeDB CLI tools to adapt one single
+naming scheme: ``edgedb <group> <action>``.
+
+This RFC supersedes "RFC 1003: Consistent CLI Design".
+
+
+Motivation
+==========
+
+The EdgeDB CLI (as of EdgeDB 1.0 Beta 2) sports two different naming schemes:
+
+* ``edgedb <group> <action>`` used by ``edgedb server`` and ``edgedb project``;
+
+* ``edgedb <action>`` used by all other commands, e.g.
+  ``edgedb create-migration`` or ``edgedb create-role``.
+
+The explanation for treating ``edgedb server`` and ``edgedb project``
+differently from all other commands is that they are essentially "tools within
+a tool". Technically this is a valid argument: both command groups do not work
+with a single database or even take database connection arguments, contrary
+to most other commands. But in reality, we cannot expect users to understand
+the "tool within a tool" concept without reading RFCs or the documentation.
+Most likely the CLI would be just perceived as inconsistent at best, or
+inconvinient in the worst case.
+
+With adding the ``edgedb project`` subcommand, it became clear that maintaining
+two entirely different naming schemes in one tool will be confusing to the
+users.  Here's what a portion of ``--help`` output would look like if we keep
+the current approach::
+
+    <...>
+
+    Migrations:
+        create-migration         Create a migration script
+        apply-migrations         Bring current database to the latest or
+                                 a specified revision
+        show-migrations          Show all migration versions
+        check-migrations         Show current migration state
+
+    Server Management:
+        server status            Status of an instance
+        server init              Initialize a new server instance
+        server start             Start an instance
+        server stop              Stop an instance
+        server restart           Restart an instance
+        server info              Show server information
+
+    <...>
+
+The actual ``--help`` output will be considerably longer than that. It will
+likely take a few days for the users to not be confused whether to type
+``edgedb project init`` or ``edgedb init-project``, because they have just
+run ``edgedb create-migration``.
+
+Lastly, we will inevitably continue evolving the EdgeDB CLI by adding new
+subcommands. For example, we might add the ``edgedb cloud`` command group which
+would classify as a "tool within a tool". Or we might add subcommands to manage
+authentication and other aspects of database management, which are unlikely
+to be classified as "tools within a tool", in which case we will have more
+commands in the form of ``edgedb create-X`` or ``edgedb show-Y``. Ultimately,
+the number of commands with entirely different naming will only continue to
+grow.
+
+
+Overview
+========
+
+The RFC proposes to have the following comamnds structure for the
+the EdgeDB RC1 release::
+
+    dump                       Create a database backup
+    restore                    Restore a database backup from file
+    configure                  Configure a DB or a server instance
+
+    migration apply            Migrate the database to the latest revision
+    migration create           Create a new migration
+    migration log              Show the migrations log
+    migration status           Show the current migration state
+    migrate                    An alias for `edgedb migration apply`
+
+    project init               Initialize a new EdgeDB project
+    project status             Show the status of the current project
+    project list               List all projects
+    project unlink             Clean-up the project configuration
+
+    server status              Status of an instance
+    server init                Initialize a new server instance
+    server start               Start an instance
+    server stop                Stop an instance
+    server restart             Restart an instance
+    server info                Show server information
+    server install             Install edgedb-server
+    server uninstall           Uninstall edgedb-server
+    server upgrade             Upgrade installations and instances
+    server destroy             Destroy a server instance and remove the data stored
+    server list-versions       List available and installed versions of the server
+    server logs                Show logs of an instance
+    server reset-password      Reset password for a user in the instance
+
+    database create            Create a new DB
+    database drop              Drop the DB
+
+    inspect describe           Describe the matching DB object
+    inspect describe-schema    Show the schema in SDL
+    inspect list-aliases       List type aliases
+    inspect list-casts         List casts
+    inspect list-databases     List databases
+    inspect list-indexes       List indexes
+    inspect list-modules       List modules
+    inspect list-roles         List roles
+    inspect list-object-types  List object types
+    inspect list-scalar-types  List scalar types
+
+    self upgrade               Upgrade this tool to the latest version
+    self uninstall             Uninstall this tool
+
+
+Design Considerations
+=====================
+
+Why there is no ``edgedb role``
+-------------------------------
+
+We will likely introduce role management commands when we begin working on
+streamlining auth management and implementing the access control layer.
+
+
+Why there is ``edgedb inspect``
+-------------------------------
+
+Keeping the ``edgedb list-X`` commands goes against the unification this RFC
+proposes. There has to be a group for all ``list-X`` and ``describe-Y``
+commands and ``edgedb inspect`` seems like a reasonable choice.
+
+It is important understand the context of how the inspect commands are used.
+Most of the time they are being accessed from REPL, e.g.::
+
+    db> \lt                     # list object types shorcut
+    db> \list-object-types      # the full command
+
+Using them from the CLI is less likely, but not exposing the to the CLI at
+all seems very limiting. Therefore we propose the following:
+
+* Inspect commands will be exposed **to the CLI** via the ``edgedb inspect``
+  command group.
+
+* Inspect subcommands will be exposed **in REPL** directly, without
+  requiring users to type ``inspect``. E.g. instead of typing
+  ``\inspect list-object-types`` users should be able to continue
+  using the ``\list-object-types`` command.
+
+Overall, the consistency of the CLI is more important than the minor
+inconsistencies of the introspection commands in REPL.
+
+
+Occasional Duplication of Commands
+----------------------------------
+
+Some of the commands will have aliases:
+
+* ``edgedb migrate`` is an alias for ``edgedb migration apply``. The reason
+  for having the alias: this will be a very popular and frequently typed
+  command.
+
+* ``edgedb inspect list-X`` might become aliases for ``edgedb X list``
+  for some types of entities in the future.  While this does not seem like
+  a "pure" solution, there is no harm in having aliases like this.
+
+In general, we believe that having aliases for some commands cannot
+harm the overall developer experience of using the CLI.
+
+
+RFC 1003 -- Rejected Ideas
+--------------------------
+
+The superseded RFC 1003 explicitly rejected the ``<group> <command>`` naming
+scheme, quote::
+
+    * inability to adjust every command naturally in this way;
+
+    * disruptive nature of the change;
+
+    * less verbose ``help`` output; and
+
+    * less natural-sounding commands.
+
+The verbosity of the updated ``edgedb --help`` output can be and will be
+tweaked until it hits the perfect balance of being readable and informative.
+
+The less natural-sounding commands argument is valid, as
+``edgedb create-migration`` certainly sounds more natural than
+``edgedb migration create``. But given that we will likely have between more
+than 30 subcommands, it is clear that giving users a way to organize
+subcommands mentally in categories to memorize the overall structure is more
+important than "making commands sound like plain English".
+
+The proposed change is indeed very disruptive but we believe it is still worth
+implementing it before 1.0. It is important to understand that RFC 1003 was
+written when the CLI had only one "tool within a tool" — ``edgedb server``.
+Since then we have added ``edgedb project`` and it became apparent that we
+will likely continue to add more tools like that.
+
+
+Backwards Compatibility
+=======================
+
+We will supporting all existing commands (e.g. ``edgedb create-migration``)
+until the 1.0 release.
+
+The old commands will be hidden from the ``--help`` output. When run, old
+commands will render a deprecation warning, e.g.::
+
+    $ edgedb create-migration
+    The `create-migration` command has been deprecated.
+    Use `edgedb migration create` instead.
+
+
+Open Questions
+==============
+
+* Do we need to remove or redesign ``edgedb configure``?
+
+* Do we need ``edgedb query``?
+
+* Do we want to show the full list of ``edgedb inspect`` subcommands in
+  ``edgedb --help``, or should we just pring that "edgedb inspect has a number
+  of subcommands to introspect the database instance; type edgedb
+  inspect --help for more details"?
