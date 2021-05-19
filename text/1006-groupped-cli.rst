@@ -80,9 +80,11 @@ Overview
 The RFC proposes to have the following comamnds structure for the
 the EdgeDB RC1 release::
 
+  SUBCOMMANDS:
+
     dump                       Create a database backup
     restore                    Restore a database backup from file
-    configure                  Configure a DB or a server instance
+    config                     Configure a DB or a server instance
 
     migration apply            Migrate the database to the latest revision
     migration create           Create a new migration
@@ -112,19 +114,28 @@ the EdgeDB RC1 release::
     database create            Create a new DB
     database drop              Drop the DB
 
-    inspect describe           Describe the matching DB object
-    inspect describe-schema    Show the schema in SDL
-    inspect list-aliases       List type aliases
-    inspect list-casts         List casts
-    inspect list-databases     List databases
-    inspect list-indexes       List indexes
-    inspect list-modules       List modules
-    inspect list-roles         List roles
-    inspect list-object-types  List object types
-    inspect list-scalar-types  List scalar types
-
     self upgrade               Upgrade this tool to the latest version
     self uninstall             Uninstall this tool
+
+    inspect                    Print information about the database, run
+                               `edgedb inspect --help` for details.
+
+The output of ``edgedb inspect --help``::
+
+  edgedb inspect [SUBCOMMAND]
+
+  SUBCOMMANDS:
+
+    describe           Describe the matching DB object
+    describe-schema    Show the schema in SDL
+    list-aliases       List type aliases
+    list-casts         List casts
+    list-databases     List databases
+    list-indexes       List indexes
+    list-modules       List modules
+    list-roles         List roles
+    list-object-types  List object types
+    list-scalar-types  List scalar types
 
 
 Design Considerations
@@ -135,6 +146,13 @@ Why there is no ``edgedb role``
 
 We will likely introduce role management commands when we begin working on
 streamlining auth management and implementing the access control layer.
+
+
+Why there is no ``edgedb query``
+--------------------------------
+
+We already have ``edgedb -c``.  We can add ``edgedb query`` if it is requested
+by users.
 
 
 Why there is ``edgedb inspect``
@@ -213,6 +231,40 @@ Since then we have added ``edgedb project`` and it became apparent that we
 will likely continue to add more tools like that.
 
 
+Changes Summary
+===============
+
+================================= ===============================================
+          Old command                                Comments
+================================= ===============================================
+``edgedb configure``              Rename to ``edgedb config``
+``edgedb alter-role``             Remove
+``edgedb create-superuser-role``  Remove
+``edgedb create-database``        Rename to ``edgedb db create``
+``edgedb create-migration``       Rename to ``edgedb migration create``
+``edgedb describe``               Move under ``edgedb inspect``
+``edgedb drop-role``              Remove
+``edgedb dump``                   Keep as is
+``edgedb help``                   Remove (we can later implement long help)
+``edgedb list-aliases``           Move under ``edgedb inspect``
+``edgedb list-casts``             Move under ``edgedb inspect``
+``edgedb list-databases``         Move under ``edgedb inspect``
+``edgedb list-indexes``           Move under ``edgedb inspect``
+``edgedb list-modules``           Move under ``edgedb inspect``
+``edgedb list-object-types``      Move under ``edgedb inspect``
+``edgedb list-roles``             Move under ``edgedb inspect``
+``edgedb list-scalar-types``      Move under ``edgedb inspect``
+``edgedb migrate``                Keep as is; also add ``edgedb migration apply``
+``edgedb migration-log``          Rename to ``edgedb migration log``
+``edgedb project``                Keep as is
+``edgedb query``                  Remove
+``edgedb restore``                Keep as is
+``edgedb self-upgrade``           Rename to ``edgedb self upgrade``
+``edgedb server``                 Keep as is
+``edgedb show-status``            Rename to ``edgedb migration status``
+================================= ===============================================
+
+
 Backwards Compatibility
 =======================
 
@@ -225,16 +277,3 @@ commands will render a deprecation warning, e.g.::
     $ edgedb create-migration
     The `create-migration` command has been deprecated.
     Use `edgedb migration create` instead.
-
-
-Open Questions
-==============
-
-* Do we need to remove or redesign ``edgedb configure``?
-
-* Do we need ``edgedb query``?
-
-* Do we want to show the full list of ``edgedb inspect`` subcommands in
-  ``edgedb --help``, or should we just pring that "edgedb inspect has a number
-  of subcommands to introspect the database instance; type edgedb
-  inspect --help for more details"?
