@@ -114,11 +114,15 @@ the EdgeDB RC1 release::
     database create            Create a new DB
     database drop              Drop the DB
 
+    describe object            Describe a database object
+    describe schema            Describe the database schema
+
+    list                       List matching database objects by name and type
+                               (run `edgedb list --help` for more info)
+
     self upgrade               Upgrade this tool to the latest version
     self uninstall             Uninstall this tool
 
-    inspect                    Print information about the database, run
-                               `edgedb inspect --help` for details.
 
 The output of ``edgedb inspect --help``::
 
@@ -126,16 +130,14 @@ The output of ``edgedb inspect --help``::
 
   SUBCOMMANDS:
 
-    describe           Describe the matching DB object
-    describe-schema    Show the schema in SDL
-    list-aliases       List type aliases
-    list-casts         List casts
-    list-databases     List databases
-    list-indexes       List indexes
-    list-modules       List modules
-    list-roles         List roles
-    list-object-types  List object types
-    list-scalar-types  List scalar types
+    list aliases               List type aliases
+    list casts                 List casts
+    list databases             List databases
+    list indexes               List indexes
+    list modules               List modules
+    list roles                 List roles
+    list types                 List object types
+    list scalars               List scalar types
 
 
 Design Considerations
@@ -231,29 +233,57 @@ Since then we have added ``edgedb project`` and it became apparent that we
 will likely continue to add more tools like that.
 
 
+REPL Introspection
+==================
+
+The ``describe`` and ``list`` CLI subcommands will be exposed in REPL
+via the backslash syntax. The below table outlines the new mapping:
+
+================================= =============================================
+          CLI command                              REPL Command
+================================= =============================================
+``edgedb describe object``        ``\d``
+``edgedb describe schema``        ``\ds``
+``edgedb list databases``         ``\l``
+``edgedb list aliases``           ``\la``
+``edgedb list casts``             ``\lc``
+``edgedb list indexes``           ``\li``
+``edgedb list modules``           ``\lm``
+``edgedb list types``             ``\lt``
+``edgedb list scalars``           ``\ls``
+``edgedb list roles``             ``\lr``
+================================= =============================================
+
+The ``\l`` and ``\d`` REPL shortcuts are used especially frequently so we
+are shortening them to one letter (instead of calling them ``\do`` and
+``\ld``.)
+
+
 Changes Summary
 ===============
 
+Changes in the CLI:
+
 ================================= ===============================================
-          Old command                                Comments
+        Old CLI command                                Comments
 ================================= ===============================================
 ``edgedb configure``              Rename to ``edgedb config``
 ``edgedb alter-role``             Remove
 ``edgedb create-superuser-role``  Remove
 ``edgedb create-database``        Rename to ``edgedb db create``
 ``edgedb create-migration``       Rename to ``edgedb migration create``
-``edgedb describe``               Move under ``edgedb inspect``
+``edgedb describe``               Rename to ``edgedb describe object``
 ``edgedb drop-role``              Remove
 ``edgedb dump``                   Keep as is
 ``edgedb help``                   Remove (we can later implement long help)
-``edgedb list-aliases``           Move under ``edgedb inspect``
-``edgedb list-casts``             Move under ``edgedb inspect``
-``edgedb list-databases``         Move under ``edgedb inspect``
-``edgedb list-indexes``           Move under ``edgedb inspect``
-``edgedb list-modules``           Move under ``edgedb inspect``
-``edgedb list-object-types``      Move under ``edgedb inspect``
-``edgedb list-roles``             Move under ``edgedb inspect``
-``edgedb list-scalar-types``      Move under ``edgedb inspect``
+``edgedb list-aliases``           Rename to ``edgedb list aliases``
+``edgedb list-casts``             Rename to ``edgedb list casts``
+``edgedb list-databases``         Rename to ``edgedb list databases``
+``edgedb list-indexes``           Rename to ``edgedb list indexes``
+``edgedb list-modules``           Rename to ``edgedb list modules``
+``edgedb list-object-types``      Rename to ``edgedb list types``
+``edgedb list-scalar-types``      Rename to ``edgedb list scalars``
+``edgedb list-roles``             Rename to ``edgedb list roles``
 ``edgedb migrate``                Keep as is; also add ``edgedb migration apply``
 ``edgedb migration-log``          Rename to ``edgedb migration log``
 ``edgedb project``                Keep as is
@@ -262,6 +292,30 @@ Changes Summary
 ``edgedb self-upgrade``           Rename to ``edgedb self upgrade``
 ``edgedb server``                 Keep as is
 ``edgedb show-status``            Rename to ``edgedb migration status``
+================================= ===============================================
+
+Changes in REPL:
+
+================================= ===============================================
+        Old REPL command                             Comments
+================================= ===============================================
+``\d``                            Keep as is
+``\l``                            Keep as is
+``\la``                           Keep as is
+``\lc``                           Keep as is
+``\li``                           Keep as is
+``\lm``                           Keep as is
+``\lt``                           Keep as is
+``\lT``                           Rename to ``\ls``
+``\lr``                           Keep as is
+``\list-databases``               Rename to ``\list databases``
+``\list-scalar-types``            Rename to ``\list scalars``
+``\list-object-types``            Rename to ``\list types``
+``\list-aliases``                 Rename to ``\list aliases``
+``\list-indexes``                 Rename to ``\list indexes``
+``\list-modules``                 Rename to ``\list modules``
+``\list-roles``                   Rename to ``\list roles``
+``\list-casts``                   Rename to ``\list casts``
 ================================= ===============================================
 
 
@@ -277,3 +331,12 @@ commands will render a deprecation warning, e.g.::
     $ edgedb create-migration
     The `create-migration` command has been deprecated.
     Use `edgedb migration create` instead.
+
+    <... edgedb migration create output ...>
+
+Same transition strategy applies to REPL::
+
+    db> \lT
+    The `\lT` shortcut has been deprecated, use `\ls` instead.
+
+    <... list of scalar types ...>
