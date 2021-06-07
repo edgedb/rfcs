@@ -33,7 +33,7 @@ with a single database or even take database connection arguments, contrary
 to most other commands. But in reality, we cannot expect users to understand
 the "tool within a tool" concept without reading RFCs or the documentation.
 Most likely the CLI would be just perceived as inconsistent at best, or
-inconvinient in the worst case.
+inconvenient in the worst case.
 
 With adding the ``edgedb project`` subcommand, it became clear that maintaining
 two entirely different naming schemes in one tool will be confusing to the
@@ -77,7 +77,7 @@ grow.
 Overview
 ========
 
-The RFC proposes to have the following comamnds structure for the
+The RFC proposes to have the following commands structure for the
 the EdgeDB RC1 release::
 
   SUBCOMMANDS:
@@ -167,7 +167,7 @@ commands and ``edgedb inspect`` seems like a reasonable choice.
 It is important understand the context of how the inspect commands are used.
 Most of the time they are being accessed from REPL, e.g.::
 
-    db> \lt                     # list object types shorcut
+    db> \lt                     # list object types shortcut
     db> \list-object-types      # the full command
 
 Using them from the CLI is less likely, but not exposing them to the CLI at
