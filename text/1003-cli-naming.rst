@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Withdrawn
     Type: Guideline
     Created: 2020-07-02
     RFC PR: `edgedb/rfcs#0014 <https://github.com/edgedb/rfcs/pull/14>`_
@@ -14,6 +14,12 @@ This RFC discusses the naming scheme for EdgeDB command line tools
 and their shortcuts in REPL.  The RFC also documents which command line tools
 can be exposed in REPL and how, as well as how various REPL options should be
 specified.
+
+
+RFC Status
+==========
+
+This RFC has been withdrawn in favor of RFC 1006 - Simplified CLI Design.
 
 
 Motivation

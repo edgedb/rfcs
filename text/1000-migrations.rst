@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Accepted
     Type: Feature
     Created: 2020-01-28
     RFC PR: `edgedb/rfcs#0001 <https://github.com/edgedb/rfcs/pull/1>`_

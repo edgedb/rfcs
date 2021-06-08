@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Accepted
     Type: Feature
     Created: 2021-05-19
     Supersedes: RFC 1003: Consistent CLI Design

@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Accepted
     Type: Feature
     Created: 2020-09-03
     Authors: Paul Colomiets <paul@colomiets.name>
