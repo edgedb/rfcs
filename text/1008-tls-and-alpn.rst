@@ -89,16 +89,13 @@ installation, the given files will be mounted into the server container.
     the data directory will not contain the actual Postgres data files.
     However, ``metadata.json`` is still needed to describe the instance.
 
-If the private key is protected by a passphrase, a third parameter is
-then required::
+If the private key is protected by a password, the user will be prompted
+for a password interactively. Alternatively, the user could provide the
+password in an environment variable ``EDGEDB_PRIVATE_KEY_PASSWORD``. In
+either way, the password will be stored in the same ``metadata.json``
+and be further used to load the private key.
 
-    --tls-passphrase-cmd    Required if the TLS private key is protected
-                            by a passphrase. This command will be ran at
-                            the time of startup or reloading, and should
-                            contain only the passphrase in its stdout.
-
-If present, the value of this parameter is also stored in the
-``metadata.json`` file. For example::
+Here is a proposed sample ``metadata.json``::
 
     {
         "format": 2,
@@ -110,21 +107,21 @@ If present, the value of this parameter is also stored in the
         "start_conf": "Auto",
         "tls_certfile": "path/to/cert.pem",
         "tls_keyfile": "path/to/key.pem",
-        "tls_passphrase_cmd": "command-echoing-passphrase-to-stdout"
+        "tls_private_key_password": "password-in-cleartext"
     }
 
-In this example, the EdgeDB CLI will correspondingly generate a system
-service file that eventually launches the EdgeDB server as follows::
+The EdgeDB CLI will correspondingly generate a system service file that
+eventually launches the EdgeDB server as follows::
 
+    EDGEDB_TLS_PRIVATE_KEY_PASSWORD=password-in-cleartext \
     edgedb-server \
         --port=10733 \
         --tls-certfile=path/to/cert.pem \
-        --tls-keyfile=path/to/key.pem \
-        --tls-passphrase-cmd=command-echoing-passphrase-to-stdout
+        --tls-keyfile=path/to/key.pem
 
-    This RFC does not involve setting up a proper CA-based trust chain
-    for production usage. The knowledge will be well-documented, and
-    products like the Aether will have its own way doing so.
+This RFC does not involve setting up a proper CA-based trust chain for
+production usage. The knowledge will be well-documented, and products
+like the Aether will have its own way doing so.
 
 
 Generate Self-signed Certificates
@@ -528,6 +525,20 @@ Rejected Alternative Ideas
     directories. But this is not possible for future instances with
     remote Postgres clusters - the server won't use a persistent data
     directory. So we decided to just pass in the paths to the key pair.
+
+11. Store the private key and passphrase in ``credentials.json``.
+
+    This file is not supposed to be used by the server, and the
+    passphrase is only needed by the server. Another previous attempt
+    was to use a user-specified command for the private key passphrase
+    like Postgres, because the the service may auto start and the key
+    passphrase has to be provided in some form. However this command
+    can be a confusing option for users using Docker, as the command is
+    supposed to run on the host machine, which also brings trouble to
+    our CLI implementation. So eventually we just store the passphrase
+    in ``metadata.json`` and feed it to ``edgedb-server`` as an
+    environment variable.
+
 
 .. [1] https://datatracker.ietf.org/doc/html/rfc5246
 .. [2] https://datatracker.ietf.org/doc/html/rfc7301
