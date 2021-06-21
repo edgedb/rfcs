@@ -338,13 +338,16 @@ the private key is not protected by a password.
 When ``--tls-certfile`` is not present and the server is in ``devmode``
 or ``testmode``, the server will use the CLI to generate a self-signed
 certificate and use it to run the TLS server for development and
-testing. The generated certificate (with its private key) should be
-written to a ``credentials.json`` file just like the regular CLI
-behavior, together with the connection parameters. For example, the
-server would run this "hidden" CLI command on start::
+testing. Particularly, the server will use a "hidden" option of the CLI
+subcommand ``authenticate`` like this::
 
-    edgedb _dev --port 5656 --user edgedb \
-        --password login-password-in-clear-text --database edgedb
+    edgedb authenticate \
+        --generate-dev-cert \
+        --name local-dev \
+        --user edgedb \
+        --password login-password-in-clear-text \
+        --database edgedb \
+        :5656
 
 And it overwrites ``~/.edgedb/credentials/local-dev.json`` with::
 
@@ -353,14 +356,14 @@ And it overwrites ``~/.edgedb/credentials/local-dev.json`` with::
         "user": "edgedb",
         "password": "login-password-in-clear-text",
         "database": "edgedb",
-        "tls_certdata": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAA..."
+        "tls_certdata": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagAw..."
     }
 
-And echo back the generated certificate in standard output so that the
-server could simply read and use. So that the EdgeDB developer could
-always use ``edgedb -Ilocal-dev`` to access the dev server. The test
-suite could also take advantage from this mimic of real-life EdgeDB
-scenario to cover some real cases.
+And echo back the generated private key and certificate concatenated in
+standard output so that the server could simply read and use. So that
+the EdgeDB developer could always use ``edgedb -Ilocal-dev`` to access
+the dev server. The test suite could also take advantage from this mimic
+of real-life EdgeDB scenario to cover some real cases.
 
 Another server-side topic that was discussed in this RFC is the UNIX
 domain socket. It is proposed that the non-admin UNIX socket support
