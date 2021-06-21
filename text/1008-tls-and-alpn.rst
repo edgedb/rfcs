@@ -167,6 +167,8 @@ not contain the ``subjectAltName`` extension [7]_ as it's not reliable
 for the CLI to enumerate all hostnames on some non-local installations,
 and 2) hostname check is likely unnecessary for the following scenario.
 
+    Skipping hostname check might change in the future.
+
 For remote clients that don't have access to the ``credentials.json``
 file on the server-side, a new command is proposed to create a local
 ``credentials.json`` file for all future connections to the same
@@ -237,6 +239,12 @@ is successful. In the above example,
 And then the client logic for server certificate verification is just
 the same as for local development as explained earlier in this section.
 
+    Open Question: The server may be exposing a chain of certificates.
+    We probably want to balance between convenience (trusting root or
+    intermediate certificate) and safety (trusting only the leaf
+    certificate). Do we want to let the user choose which certificate to
+    trust?
+
 
 ALPN and Protocol Changes
 =========================
@@ -251,21 +259,21 @@ For now, the EdgeDB server will advertise two protocols in ALPN (however
 EdgeDB is not limited to only these two for future possibilities):
 
 * ``edgedb-binary``: The EdgeDB binary protocol
-* ``http``: HTTP-based protocol, including the server system API, and
-  extensions like EdgeQL over HTTP, GraphQL over HTTP and the Notebook.
+* ``http/1.1``: HTTP-based protocol, including the server system API,
+  and extensions like EdgeQL over HTTP, GraphQL over HTTP and Notebook.
 
 The client (including the language bindings and the REPL) should choose
-between ``edgedb-binary`` and ``http`` during TLS handshake based on the
-scenario in which the user is using the client. If the client didn't
+between ``edgedb-binary`` and ``http/1.1`` during TLS handshake based on
+the scenario in which the user is using the client. If the client didn't
 join the protocol negotiation (e.g. using curl to access the server
-stats endpoint), the server will fallback to ``http`` - then it is
+stats endpoint), the server will fallback to ``http/1.1`` - then it is
 literally just HTTPS.
 
     Note: the server cannot tell if the client asked for a protocol that
     is not supported by the server, or didn't join the ALPN at all. The
-    server will use ``http`` for both cases. However if the client asked
-    for a specific protocol, it must check the ALPN result and raise an
-    error if the result is not the expected protocol.
+    server will use ``http/1.1`` for both cases. However if the client
+    asked for a specific protocol, it must check the ALPN result and
+    raise an error if the result is not the expected protocol.
 
 The EdgeDB server will no longer check the magical first-byte to switch
 between HTTP protocol and the binary protocol - it is fully replaced by
@@ -422,19 +430,39 @@ EdgeDB developers and should not be enabled by the users.
 +============+================+================+===========================+
 | Old Client | Accessible     | Friendly Error | Accessible                |
 +------------+----------------+----------------+---------------------------+
-| New Client | Friendly Error | Accessible     | Friendly Error            |
+| New Client | Friendly Error | Accessible     | Accessible                |
 +------------+----------------+----------------+---------------------------+
 
 The EdgeDB development server (``edb server``) will provide a hidden
-option ``--no-tls`` to run the server in non-TLS compatible mode (just
-like the old server) for development and testing only. This option is
-not available in the EdgeDB CLI (``edgedb server``).
+option ``--allow-non-tls`` to run the server in compatible mode for
+development and testing only. It will fallback to cleartext transport if
+the TLS handshake fails. This option is not available in the EdgeDB CLI
+(``edgedb server``).
 
-At the same time, the new server will return a user-friendly error in
-plain text if the SSL handshake fails, in binary protocol or HTTP
-depending on again the magical first-byte. Similarly, if the new client
-could not establish a TLS connection, it should raise a proper error
-with the reason.
+On the other hand, without ``--allow-non-tls``, the new server will
+return a user-friendly error in plain text if the SSL handshake fails,
+in binary protocol or HTTP depending on again the magical first-byte.
+Similarly, if the new client could not establish a TLS connection, it
+should raise a proper error with the reason.
+
+
+CLI and Server Compatibility
+----------------------------
+
+An old version of the CLI won't be able to start a database instance
+with the new version of the server, because the new server requires TLS.
+A friendly message should be displayed by the server, suggesting to
+upgrade the CLI.
+
+New CLI on the other hand could run both old and new servers. The CLI
+must check the server version and provide different TLS parameters
+accordingly.
+
+The user could use the new CLI to upgrade an existing server instance
+running on old server software to the newer version. The CLI will prompt
+for options, the user could choose from either letting the CLI create a
+self-signed certificate, or specify a certificate and private key
+manually.
 
 
 Security Implications
@@ -442,9 +470,7 @@ Security Implications
 
 Enforcing TLS is supposed to be a full level-up in terms of security. It
 provides basic eavesdropping protection, and if configured properly the
-MITM protection too. This needs to be carefully documented as this RFC
-does not involve setting up a proper CA-based trust chain for MITM
-attacks.
+MITM protection too.
 
 For both the server-side and client-side (if implemented) certificate
 verification, the corresponding private keys and their passphrases are
@@ -453,8 +479,8 @@ credential to start a fake but valid server, potentially being able to
 collect sensitive queries without the user knowing. And a cracker could
 use the users' credentials to access their data in the database.
 
-As the server private key passphrase is stored in the
-``credentials.json`` file in clear text, this directory needs extra
+As the server private key passphrase may be stored in the
+``metadata.json`` file in clear text, the data directory needs extra
 attention for security purposes in production environments.
 
 
