@@ -61,8 +61,8 @@ Otherwise (or if the client chose not to do ALPN), the HTTP protocol is
 supposed to be used as the default protocol.
 
 
-Bring Your Own Certificate
-==========================
+EdgeDB Server Certificate
+=========================
 
 When creating an EdgeDB instance (with either ``edgedb project init`` or
 ``edgedb server init``), the user could provide a custom certificate and
@@ -79,94 +79,166 @@ its private key to be used on the server::
 
 (This is exactly `ssl.SSLContext.load_cert_chain()` from Python [4]_.)
 
-The specified path will be stored in the so-called ``credentials.json``
-- a group of JSON files named after the EdgeDB instance in a well-known
-place (e.g. `~/.edgedb/credentials/` depending on the OS) that are meant
-to store credentials. The EdgeDB server instance will then load the
-certificate and private key from the designated paths on (re)start and
-reload.
+Internally, the specified path will be stored in ``metadata.json`` under
+the data directory defined in RFC 1001 [9]_. EdgeDB CLI will copy the
+given paths to the system service file to launch the actual EdgeDB
+server as command-line parameters of ``edgedb-server``. With Docker
+installation, the given files will be mounted into the server container.
 
-    ``credentials.json`` is not directly read by the server, the EdgeDB
-    CLI reads it and set the same parameters on the ``edgedb-server``
-    command to run the server instance. With Docker installation, the
-    given files will be mounted into the server container.
+    In the future when the EdgeDB CLI supports remote Postgres clusters,
+    the data directory will not contain the actual Postgres data files.
+    However, ``metadata.json`` is still needed to describe the instance.
 
-If the private key is protected by a password, the user will be prompted
-for a password interactively. Alternatively, the user could provide the
-password in an environment variable ``EDGEDB_PRIVATE_KEY_PASSWORD``. In
-either way, the password will be stored in the same ``credentials.json``
-and be further used to load the private key.
+If the private key is protected by a passphrase, a third parameter is
+then required::
 
-The ``credentials.json`` will look like this for a certain instance::
+    --tls-passphrase-cmd    Required if the TLS private key is protected
+                            by a passphrase. This command will be ran at
+                            the time of startup or reloading, and should
+                            contain only the passphrase in its stdout.
+
+If present, the value of this parameter is also stored in the
+``metadata.json`` file. For example::
 
     {
-        "port": 10732,
-        "user": "edgedb",
-        "password": "login-password-in-clear-text",
-        "database": "edgedb",
+        "format": 2,
+        "version": "1-beta2",
+        "current_version": "1.0b2+ga7130d5c7.cv202104290000",
+        "slot": "1-beta2",
+        "method": "Package",
+        "port": 10733,
+        "start_conf": "Auto",
         "tls_certfile": "path/to/cert.pem",
         "tls_keyfile": "path/to/key.pem",
-        "tls_private_key_password": "actual-password-in-clear-text"
+        "tls_passphrase_cmd": "command-echoing-passphrase-to-stdout"
     }
 
-Both ``tls_keyfile`` and ``tls_private_key_password`` are optional in
-this file.
+In this example, the EdgeDB CLI will correspondingly generate a system
+service file that eventually launches the EdgeDB server as follows::
 
-This RFC does not involve setting up a proper CA-based trust chain for
-production usage. The knowledge will be well-documented, and products
-like the Aether will have its own way doing so.
+    edgedb-server \
+        --port=10733 \
+        --tls-certfile=path/to/cert.pem \
+        --tls-keyfile=path/to/key.pem \
+        --tls-passphrase-cmd=command-echoing-passphrase-to-stdout
+
+    This RFC does not involve setting up a proper CA-based trust chain
+    for production usage. The knowledge will be well-documented, and
+    products like the Aether will have its own way doing so.
 
 
 Generate Self-signed Certificates
-=================================
+---------------------------------
 
 The EdgeDB CLI will automatically generate a self-signed certificate if
 ``--tls-certfile`` is not present in command ``edgedb project init`` or
-``edgedb server init``. This certificate is supposed to be used only for
-development, therefore a warning will be printed while the certificate
-is generated::
+``edgedb server init`` under the data directory of that EdgeDB instance
+as described in the previous section, in the names of
+``edgedb-cert.pem`` for the certificate in PEM format, and
+``edgedb-key.pem`` for the private key (no passphrase for simplicity).
+This certificate is supposed to be used for development purposes only.
 
-    EdgeDB is generating a self-signed certificate for development
-    convenience. Please specify a proper certificate with --tls-certfile
-    for production usage, see --help for more information.
+Likewise, the ``metadata.json`` file will be update with the full path
+to the generated files for consistency.
 
-The generated bytes will have both the private key and the certificate
-in it for simplicity (simply concatenated, with the private key coming
-first [4]_). This value will be placed in the same ``credentials.json``
-file under key ``tls_certdata``. Similarly, this value will be used by
-the CLI to run the ``edgedb-server``::
+
+Client-side Server Certificate Verification
+===========================================
+
+On the client side (both the language bindings and the REPL), TLS server
+certificate verification should always be enabled. In order to accept
+the self-signed certificate, at the time of certificate generation, the
+EdgeDB CLI will also copy the generated certificate into the so-called
+``credentials.json`` - a group of JSON files named after the EdgeDB
+instance in a well-known place (e.g. ``~/.edgedb/credentials/``
+depending on the OS) that are meant to store credentials for the client
+to establish connections to the EdgeDB instance. For example::
 
     {
         "port": 10732,
         "user": "edgedb",
         "password": "login-password-in-clear-text",
         "database": "edgedb",
-        "tls_certdata": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAA..."
+        "tls_certdata": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagAw..."
     }
 
-On the client side (both the language bindings and the REPL), TLS server
-certificate verification should always be enabled. In order to accept
-the self-signed certificate, the client must automatically trust the
-certificate found in ``tls_certdata`` if this key is present in the
-``credentials.json``. The generated certificate must contain a valid
-host (usually ``127.0.0.1``) in the ``subjectAltName`` extension of type
-``dNSName`` [7]_, so that the client could always keep the hostname
-check on.
+The language bindings and the REPL should load the certificate from the
+value of ``tls_certdata`` and trust only that certificate for connecting
+to the EdgeDB instance. However, the client should not enable the check
+of the hostname, because 1) the generated self-signed certificate will
+not contain the ``subjectAltName`` extension [7]_ as it's not reliable
+for the CLI to enumerate all hostnames on some non-local installations,
+and 2) hostname check is likely unnecessary for the following scenario.
 
 For remote clients that don't have access to the ``credentials.json``
-file, it is proposed to adopt the SSH way. That is, the CLI would ask
-the user to trust the server certificate on the first connect. It must
-be explicitly warned that trusting unknown certificates in production
-may lead to MITM attacks. The trusted certificate fingerprint should be
-stored in the well-known place for ``credentials.json``: a line-based
-text file ``credentials/authorized_servers`` with each line for one
-fingerprint. The client language bindings should also read this file
-and trust the certificates whose fingerprints matches the
-``authorized_servers``. But the bindings won't modify this file - the
-server certificate fingerprint should be included in the error message
-if the verification fails.
+file on the server-side, a new command is proposed to create a local
+``credentials.json`` file for all future connections to the same
+instance::
 
-    The last paragraph needs more discussion.
+    edgedb authenticate
+
+    Authenticate to a remote EdgeDB instance and assign an instance name
+    to simplify future connections.
+
+    USAGE:
+        edgedb authenticate [OPTIONS] <host:port>
+
+    ARGS:
+        <host:port> IP/DNS name and the port of the target instance.
+
+    OPTIONS:
+        --name <name>
+            Specify a new instance name for the remote server. If not
+            present, the name will be interactively asked.
+
+        --user <user>
+            The database user to log into the remote server. If not
+            present, the username will be interactively asked.
+
+        --password <password>
+            The password for the database user to log into the remote
+            server. If not present, the username will be interactively
+            asked. This is also available as an environment variable
+            `EDGEDB_PASSWORD`.
+
+        --database <database>
+            The name of the default database to connect to.
+
+For example::
+
+    $ edgedb authenticate db.example.org:5656
+    User: john
+    Password: ******
+    Default database: edgedb
+    Here is the server certificate:
+      Hostname: db.example.org
+      Org: Company Inc.
+      Fingerprints:
+        SHA-256: 63:2B:11:99:44:40:17:DF:37:FC:C3:DF:0F:3D:15
+    Confirm? [Y/n] Y
+    Login successful.
+    Please specify a name for this instance: [db_example_org_5656]
+    Credential file created, you can now connect to the database with:
+        edgedb -I db_example_org_5656
+
+The user is responsible for trusting the server certificate, because
+trusting unknown certificates in production may lead to MITM attacks.
+This command also verifies the user login information with the server
+and only create a corresponding ``credentials.json`` file if the login
+is successful. In the above example,
+``~/.edgedb/credentials/db_example_org_5656.json`` is created::
+
+    {
+        "host": "db.example.org",
+        "port": 5656,
+        "user": "john",
+        "password": "login-password-in-clear-text",
+        "database": "edgedb",
+        "tls_certdata": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagAw..."
+    }
+
+And then the client logic for server certificate verification is just
+the same as for local development as explained earlier in this section.
 
 
 ALPN and Protocol Changes
@@ -448,6 +520,15 @@ Rejected Alternative Ideas
    On protocol level, they are all HTTP-based protocol. And there is no
    reason to redo the path-based extension system again with ALPN.
 
+10. Automatically detect certificate and private key from data directory.
+
+    The idea was to allow the server look into its data directory for
+    the TLS key pair and use it automatically, so that the CLI could
+    just store the generated self-signed key pairs into the data
+    directories. But this is not possible for future instances with
+    remote Postgres clusters - the server won't use a persistent data
+    directory. So we decided to just pass in the paths to the key pair.
+
 .. [1] https://datatracker.ietf.org/doc/html/rfc5246
 .. [2] https://datatracker.ietf.org/doc/html/rfc7301
 .. [3] https://github.com/edgedb/edgedb/discussions/1910
@@ -456,3 +537,4 @@ Rejected Alternative Ideas
 .. [6] https://nodejs.org/api/tls.html
 .. [7] https://tools.ietf.org/search/rfc2818#section-3.1
 .. [8] https://github.com/edgedb/webapp-bench
+.. [9] https://github.com/edgedb/rfcs/blob/master/text/1001-edgedb-server-control.rst#instance-names
