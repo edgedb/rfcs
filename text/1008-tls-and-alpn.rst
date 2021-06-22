@@ -77,7 +77,7 @@ its private key to be used on the server::
                     present, the private key will be taken from
                     --tls-certfile as well.
 
-(This is exactly `ssl.SSLContext.load_cert_chain()` from Python [4]_.)
+(This is exactly ``ssl.SSLContext.load_cert_chain()`` from Python [4]_.)
 
 Internally, the specified path will be stored in ``metadata.json`` under
 the data directory defined in RFC 1001 [9]_. EdgeDB CLI will copy the
@@ -135,7 +135,7 @@ as described in the previous section, in the names of
 ``edgedb-key.pem`` for the private key (no passphrase for simplicity).
 This certificate is supposed to be used for development purposes only.
 
-Likewise, the ``metadata.json`` file will be update with the full path
+Likewise, the ``metadata.json`` file will be updated with the full path
 to the generated files for consistency.
 
 
