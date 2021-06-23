@@ -288,25 +288,28 @@ Usually TLS just work out of the box with the default settings. But for
 special security reasons, optionally the advanced TLS settings can be
 modified in the EdgeDB config system per instance. Specifically:
 
-+-------------------------+--------------------------+--------------------------------------------------------------------------+
-| EdgeDB Config           | Python SSLContext member | Possible Values                                                          |
-+=========================+==========================+==========================================================================+
-| ``tls_minimum_version`` | ``minimum_version``      | ``1.0``, ``1.1``, ``1.2``, ``1.3``, ``MIN_SUPPORTED``, ``MAX_SUPPORTED`` |
-+-------------------------+--------------------------+--------------------------------------------------------------------------+
-| ``tls_maximum_version`` | ``maximum_version``      | ``1.0``, ``1.1``, ``1.2``, ``1.3``, ``MIN_SUPPORTED``, ``MAX_SUPPORTED`` |
-+-------------------------+--------------------------+--------------------------------------------------------------------------+
-| ``tls_ciphers``         | ``set_ciphers()``        | Output of ``openssl ciphers`` in the same format.                        |
-+-------------------------+--------------------------+--------------------------------------------------------------------------+
-| ``tls_ecdh_curve``      | ``set_ecdh_curve()``     | A well-known elliptic curve                                              |
-+-------------------------+--------------------------+--------------------------------------------------------------------------+
-| ``tls_dh_params``       | ``load_dh_params()``     | DH parameters in PEM format (not path to the file)                       |
-+-------------------------+--------------------------+--------------------------------------------------------------------------+
++-------------------------+--------------------------+--------------------------------------------------------+-------------------+
+| EdgeDB Config           | Python SSLContext member | Possible Values                                        | Default Value     |
++=========================+==========================+========================================================+===================+
+| ``tls_minimum_version`` | ``minimum_version``      | ``1.2``, ``1.3``, ``MIN_SUPPORTED``, ``MAX_SUPPORTED`` | ``MIN_SUPPORTED`` |
++-------------------------+--------------------------+--------------------------------------------------------+-------------------+
+| ``tls_maximum_version`` | ``maximum_version``      | ``1.2``, ``1.3``, ``MIN_SUPPORTED``, ``MAX_SUPPORTED`` | ``MAX_SUPPORTED`` |
++-------------------------+--------------------------+--------------------------------------------------------+-------------------+
+| ``tls_ciphers``         | ``set_ciphers()``        | Output of ``openssl ciphers`` in the same format.      |                   |
++-------------------------+--------------------------+--------------------------------------------------------+-------------------+
+| ``ecdh_curve``          | ``set_ecdh_curve()``     | A well-known elliptic curve                            |                   |
++-------------------------+--------------------------+--------------------------------------------------------+-------------------+
+| ``dh_params``           | ``load_dh_params()``     | DH parameters in PEM format (not path to the file)     |                   |
++-------------------------+--------------------------+--------------------------------------------------------+-------------------+
 
-The corresponding Python method or property will not be touched if the
-config is not set. The TLS protocol versions and the magic constants
-``MIN_SUPPORTED`` and ``MAX_SUPPORTED`` are mapped to corresponding TLS
-constants. Other than that, EdgeDB doesn't verify the correctness of the
-config values.
+Specifically for the TLS version, EdgeDB only supports TLS 1.2 and 1.3
+for now. ``MIN_SUPPORTED`` is just ``1.2``, but the ``MAX_SUPPORTED`` is
+the Python ``ssl.MAXIMUM_SUPPORTED`` magic constant, which is ``1.3`` at
+the moment.
+
+The remaining 3 configs will call the set/load methods on ``SSLContext``
+only when they are set. EdgeDB doesn't verify the correctness of the
+values.
 
 
 Development of EdgeDB
@@ -393,10 +396,10 @@ the other two methods ``Trust`` and ``SCRAM``. The ``Certificate``
 ``Auth`` entry tells the EdgeDB server which users are allowed to
 authenticate themselves using a client certificate.
 
-Then we would need a new config type to store the trusted client
-certificate fingerprints. The idea is to let the CLI generate the client
-certificates using a local CA, and the CLI tells the server to trust the
-generated certificates.
+Then the CLI would generate the client certificates using a local CA. As
+the server knows which root CA certificate to trust, it will be able to
+verify the authenticity of the client certificates it received through
+the wire.
 
 The certificate should contain the authorized database role in CN or an
 X.509 extension, and that role must match the requested login user
