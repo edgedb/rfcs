@@ -82,8 +82,7 @@ its private key to be used on the server::
 Internally, the specified path will be stored in ``metadata.json`` under
 the data directory defined in RFC 1001 [9]_. EdgeDB CLI will copy the
 given paths to the system service file to launch the actual EdgeDB
-server as command-line parameters of ``edgedb-server``. With Docker
-installation, the given files will be mounted into the server container.
+server as command-line parameters of ``edgedb-server``.
 
     In the future when the EdgeDB CLI supports remote Postgres clusters,
     the data directory will not contain the actual Postgres data files.
@@ -118,6 +117,13 @@ eventually launches the EdgeDB server as follows::
         --port=10733 \
         --tls-certfile=path/to/cert.pem \
         --tls-keyfile=path/to/key.pem
+
+Particularly for Docker installation, there is no ``metadata.json``.
+Instead, the metadata is stored in the Docker container spec and the
+volume labels. As the user-specified files must be mounted into the
+Docker container to be used by the server, the CLI could attach the
+password and the path to those files in the Docker as a label on the
+corresponding volume.
 
 This RFC does not involve setting up a proper CA-based trust chain for
 production usage. The knowledge will be well-documented, and products
