@@ -157,34 +157,6 @@ We already have ``edgedb -c``.  We can add ``edgedb query`` if it is requested
 by users.
 
 
-Why there is ``edgedb inspect``
--------------------------------
-
-Keeping the ``edgedb list-X`` commands goes against the unification this RFC
-proposes. There has to be a group for all ``list-X`` and ``describe-Y``
-commands and ``edgedb inspect`` seems like a reasonable choice.
-
-It is important understand the context of how the inspect commands are used.
-Most of the time they are being accessed from REPL, e.g.::
-
-    db> \lt                     # list object types shortcut
-    db> \list-object-types      # the full command
-
-Using them from the CLI is less likely, but not exposing them to the CLI at
-all seems very limiting. Therefore we propose the following:
-
-* Inspect commands will be exposed **to the CLI** via the ``edgedb inspect``
-  command group.
-
-* Inspect subcommands will be exposed **in REPL** directly, without
-  requiring users to type ``inspect``. E.g. instead of typing
-  ``\inspect list-object-types`` users should be able to continue
-  using the ``\list-object-types`` command.
-
-Overall, the consistency of the CLI is more important than the minor
-inconsistencies of the introspection commands in REPL.
-
-
 Occasional Duplication of Commands
 ----------------------------------
 
@@ -194,7 +166,7 @@ Some of the commands will have aliases:
   for having the alias: this will be a very popular and frequently typed
   command.
 
-* ``edgedb inspect list-X`` might become aliases for ``edgedb X list``
+* ``edgedb list X`` might become an alias for ``edgedb X list``
   for some types of entities in the future.  While this does not seem like
   a "pure" solution, there is no harm in having aliases like this.
 
@@ -270,7 +242,7 @@ Changes in the CLI:
 ``edgedb configure``              Rename to ``edgedb config``
 ``edgedb alter-role``             Remove
 ``edgedb create-superuser-role``  Remove
-``edgedb create-database``        Rename to ``edgedb db create``
+``edgedb create-database``        Rename to ``edgedb database create``
 ``edgedb create-migration``       Rename to ``edgedb migration create``
 ``edgedb describe``               Rename to ``edgedb describe object``
 ``edgedb drop-role``              Remove
