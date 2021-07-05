@@ -84,7 +84,7 @@ the EdgeDB RC1 release::
 
     dump                       Create a database backup
     restore                    Restore a database backup from file
-    config                     Configure a DB or a server instance
+    configure                  Configure a DB or a server instance
 
     migration apply            Migrate the database to the latest revision
     migration create           Create a new migration
@@ -239,7 +239,7 @@ Changes in the CLI:
 ================================= ===============================================
         Old CLI command                                Comments
 ================================= ===============================================
-``edgedb configure``              Rename to ``edgedb config``
+``edgedb configure``              Keep as is
 ``edgedb alter-role``             Remove
 ``edgedb create-superuser-role``  Remove
 ``edgedb create-database``        Rename to ``edgedb database create``
