@@ -182,11 +182,13 @@ Here are method signatures:
         async def with_session_config(self, **config) -> \
             Connection: ...
 
-        async def with_transaction_options(self, isolation: ...) -> \
-            Connection: ...
+        async def with_transaction_options(self,
+            options: TransactionOptions,
+        ) -> Connection: ...
 
-        async def with_retry_options(self, attempts: int = 3, ...) -> \
-            Connection: ...
+        async def with_retry_options(self,
+            options: RetryOptions,
+        ) -> Connection: ...
 
     class AsyncIOPool:
         ...
@@ -194,8 +196,12 @@ Here are method signatures:
             ReadOnlyConnection: ...
 
         async def with_session_config(self, **config) -> Pool: ...
-        async def with_transaction_options(self, isolation: ...) -> Pool: ...
-        async def with_retry_options(self, attempts: int = 3, ...) -> Pool: ...
+        async def with_transaction_options(self,
+            options: TransactionOptions,
+        ) -> Pool: ...
+        async def with_retry_options(self,
+            options: RetryOptions,
+        ) -> Pool: ...
 
 The ``AsyncIOReadOnlyPool`` and ``AsyncIOReadOnlyConnection`` get the
 same methods (including ``read_only`` method itself, which is no-op).
@@ -321,8 +327,8 @@ Raw connection has only ``rawTransaction`` method:
         ): Promise<T>;
     }
 
-Note: transaction options are passed directly to ``raw_transaction`` as
-it doesn't have ``with_transaction_options`` method.
+Note: transaction options are passed directly to ``rawTransaction`` as
+it doesn't have ``withTransactionOptions`` method.
 
 Introduce interface for making queries:
 
@@ -384,21 +390,20 @@ The ``RetryOptions`` signature:
 
 .. code-block:: typescript
 
-    type BackoffFn = (attempt: number) => number;
-    enum AttempsOption {
-        All,
+    type BackoffFunction = (attempt: number) => number;
+    enum RetryCondition {
         NetworkError,
-        ConcurrentUpdate,
-        Deadlock,
+        TransactionConflict,
     }
     class RetryOptions {
-        constructor({
+        constructor(
             attempts: number = 3,
-        });
-        attempts(
-            which: AttemptsOption,
-            attempts: number,
-            backoff_ms?: BackoffFn,
+            backoff: BackoffFunction = defaultBackoff,
+        );
+        withRule(
+            condition: RetryCondition,
+            attempts?: number,
+            backoff?: BackoffFunction,
         ): RetryOptions;
     }
 
@@ -638,21 +643,19 @@ Add ``RetryOptions`` class:
 
 .. code-block:: Python
 
-    type DelayFn = (attempt: number) => number;
-
-    class AttempsOption(enum.Enum):
-        ALL = "ALL"
-        NETWORK_ERROR = "NETWORK_ERROR"
-        CONCURRENT_UPDATE = "CONCURRENT_UPDATE"
-        DEADLOCK = "DEADLOCK"
+    class RetryCondition(enum.Enum):
+        TransactionConflict = enum.auto()
+        NetworkError = enum.auto()
 
     class RetryOptions:
-        def __init__(self, attempts=3): ...
-
+        def __init__(self,
+            attempts: int = 3,
+            backoff: Callable[[int], [float]] = default_backoff,
+        ): ...
         def attempts(
             which: AttemptsOption,
             attempts: int,
-            backoff_ms: Callable[[int], [float]],
+            backoff: Callable[[int], [float]],
         ): RetryOptions: ...
     }
 
