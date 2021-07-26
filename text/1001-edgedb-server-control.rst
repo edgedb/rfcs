@@ -13,6 +13,16 @@ This RFC describes the design of the ``edgedb`` CLI subcommand for the
 purposes of installation, update and control of a local EdgeDB server.
 
 
+Implementation Revision
+=======================
+
+`Feedback <https://github.com/edgedb/edgedb/issues/2647>`_ on the initial
+beta implementation of the RFC prompted a redesign of the ``edgedb server``
+commands group, essentially splitting it into two groups of commands:
+``edgedb server`` and ``edgedb instance``. Read more on that in
+`RFC 1006 <https://github.com/edgedb/rfcs/blob/master/text/1006-simplified-cli.rst>`_.
+
+
 Motivation
 ==========
 

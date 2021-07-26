@@ -97,19 +97,19 @@ the EdgeDB RC1 release::
     project list               List all projects
     project unlink             Clean-up the project configuration
 
-    server status              Status of an instance
-    server init                Initialize a new server instance
-    server start               Start an instance
-    server stop                Stop an instance
-    server restart             Restart an instance
-    server info                Show server information
-    server install             Install edgedb-server
-    server uninstall           Uninstall edgedb-server
+    server info                Show locally installed EdgeDB servers
+    server install             Install an EdgeDB server locally
+    server uninstall           Uninstall an EdgeDB server locally
     server upgrade             Upgrade installations and instances
-    server destroy             Destroy a server instance and remove the data stored
     server list-versions       List available and installed versions of the server
-    server logs                Show logs of an instance
-    server reset-password      Reset password for a user in the instance
+
+    instance create            Initialize a new server instance
+    instance status            Show statuses of available instances
+    instance start             Start an instance
+    instance stop              Stop an instance
+    instance restart           Restart an instance
+    instance destroy           Destroy an instance and remove the data
+    instance logs              Show logs of an instance
 
     database create            Create a new DB
     database drop              Drop the DB
@@ -172,6 +172,35 @@ Some of the commands will have aliases:
 
 In general, we believe that having aliases for some commands cannot
 harm the overall developer experience of using the CLI.
+
+
+RFC 1001: edgedb server commands restructuring
+----------------------------------------------
+
+`Beta 2 feedback <https://github.com/edgedb/edgedb/issues/2647>`_ revealed
+some user confusion related to the CLI and EdgeQL terminology:
+
+1. EdgeQL had ``CONFIGURE SYSTEM`` to configure instances.
+2. The CLI had ``edgedb server install`` to essentially provision
+   installed versions of EdgeDB Server software locally.
+3. The CLI had ``edgedb server start`` to start an instance of
+   a locally installed server.
+
+(1) has been `fixed <https://github.com/edgedb/edgedb/pull/2712>`_ by
+deprecating ``CONFIGURE SYSTEM`` and introducing ``CONFIGURE INSTANCE``
+command.
+
+The confusion between (2) and (3) can be solved by splitting ``edgedb server``
+command group into two:
+
+* ``edgedb server`` to control what versions of EdgeDB Server are installed
+  on the local machine, and
+
+* ``edgedb instance`` to control locally (and remotely, in the future)
+  running instances of specific EdgeDB Server versions.
+
+The ``edgedb server reset-password`` command is removed as it does not
+support instances running via Docker.
 
 
 RFC 1003 -- Rejected Ideas
@@ -262,7 +291,19 @@ Changes in the CLI:
 ``edgedb query``                  Remove
 ``edgedb restore``                Keep as is
 ``edgedb self-upgrade``           Rename to ``edgedb self upgrade``
-``edgedb server``                 Keep as is
+``edgedb server info``            Keep as is
+``edgedb server install``         Keep as is
+``edgedb server uninstall``       Keep as is
+``edgedb server upgrade``         Keep as is
+``edgedb server list-versions``   Keep as is
+``edgedb server init``            Rename to ``edgedb instance create``
+``edgedb server status``          Rename to ``edgedb instance status``
+``edgedb server start``           Rename to ``edgedb instance start``
+``edgedb server stop``            Rename to ``edgedb instance stop``
+``edgedb server restart``         Rename to ``edgedb instance restart``
+``edgedb server destroy``         Rename to ``edgedb instance destroy``
+``edgedb server logs``            Rename to ``edgedb instance logs``
+``edgedb server reset-password``  Remove
 ``edgedb show-status``            Rename to ``edgedb migration status``
 ================================= ===============================================
 
