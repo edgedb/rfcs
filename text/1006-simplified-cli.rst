@@ -104,7 +104,7 @@ the EdgeDB RC1 release::
     server list-versions       List available and installed versions of the server
 
     instance create            Initialize a new server instance
-    instance status            Show statuses of available instances
+    instance status            Show statuses of all or of a matching instance
     instance start             Start an instance
     instance stop              Stop an instance
     instance restart           Restart an instance
