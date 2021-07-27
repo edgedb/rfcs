@@ -65,17 +65,18 @@ EdgeDB Server Certificate
 =========================
 
 When creating an EdgeDB instance (with either ``edgedb project init`` or
-``edgedb server init``), the user could provide a custom certificate and
-its private key to be used on the server::
+``edgedb instance create``), the user could provide a custom certificate
+and its private key to be used on the server::
 
-    --tls-certfile  Path to a single file in PEM format containing the
-                    certificate as well as any number of CA certificates
-                    needed to establish the certificate’s authenticity.
-                    If not present, a self-signed certificate will be
-                    generated and used instead (for development only!).
-    --tls-keyfile   Path to a file containing the private key. If not
-                    present, the private key will be taken from
-                    --tls-certfile as well.
+    --tls-cert-file  Path to a single file in PEM format containing the
+                     TLS certificate to run the instance, as well as any
+                     number of CA certificates needed to establish the
+                     certificate’s authenticity. If not present,
+                     a self-signed certificate will be generated and
+                     used instead.
+    --tls-key-file   Path to a file containing the private key. If not
+                     present, the private key will be taken from
+                     --tls-cert-file as well.
 
 (This is exactly ``ssl.SSLContext.load_cert_chain()`` from Python [4]_.)
 
@@ -90,8 +91,8 @@ server as command-line parameters of ``edgedb-server``.
 
 If the private key is protected by a password, the user will be prompted
 for a password interactively. Alternatively, the user could provide the
-password in an environment variable ``EDGEDB_PRIVATE_KEY_PASSWORD``. In
-either way, the password will be stored in the same ``metadata.json``
+password in an environment variable ``EDGEDB_TLS_PRIVATE_KEY_PASSWORD``.
+In either way, the password will be stored in the same ``metadata.json``
 and be further used to load the private key.
 
 Here is a proposed sample ``metadata.json``::
@@ -104,19 +105,19 @@ Here is a proposed sample ``metadata.json``::
         "method": "Package",
         "port": 10733,
         "start_conf": "Auto",
-        "tls_certfile": "path/to/cert.pem",
-        "tls_keyfile": "path/to/key.pem",
+        "tls_cert_file": "path/to/cert.pem",
+        "tls_key_file": "path/to/key.pem",
         "tls_private_key_password": "password-in-cleartext"
     }
 
 The EdgeDB CLI will correspondingly generate a system service file that
 eventually launches the EdgeDB server as follows::
 
-    EDGEDB_TLS_PRIVATE_KEY_PASSWORD=password-in-cleartext \
+    EDGEDB_SERVER_TLS_PRIVATE_KEY_PASSWORD=password-in-cleartext \
     edgedb-server \
         --port=10733 \
-        --tls-certfile=path/to/cert.pem \
-        --tls-keyfile=path/to/key.pem
+        --tls-cert-file=path/to/cert.pem \
+        --tls-key-file=path/to/key.pem
 
 Particularly for Docker installation, there is no ``metadata.json``.
 Instead, the metadata is stored in the Docker container spec and the
@@ -134,11 +135,11 @@ Generate Self-signed Certificates
 ---------------------------------
 
 The EdgeDB CLI will automatically generate a self-signed certificate if
-``--tls-certfile`` is not present in command ``edgedb project init`` or
-``edgedb server init`` under the data directory of that EdgeDB instance
-as described in the previous section, in the names of
-``edgedb-cert.pem`` for the certificate in PEM format, and
-``edgedb-key.pem`` for the private key (no passphrase for simplicity).
+``--tls-cert-file`` is not present in command ``edgedb project init`` or
+``edgedb instance create`` under the data directory of that EdgeDB
+instance as described in the previous section, in the names of
+``edbtlscert.pem`` for the certificate in PEM format, and
+``edbprivkey.pem`` for the private key (no passphrase for simplicity).
 This certificate is supposed to be used for development purposes only.
 
 Likewise, the ``metadata.json`` file will be updated with the full path
@@ -149,36 +150,45 @@ Client-side Server Certificate Verification
 ===========================================
 
 On the client side (both the language bindings and the REPL), TLS server
-certificate verification should always be enabled. In order to accept
-the self-signed certificate, at the time of certificate generation, the
-EdgeDB CLI will also copy the generated certificate into the so-called
-``credentials.json`` - a group of JSON files named after the EdgeDB
-instance in a well-known place (e.g. ``~/.edgedb/credentials/``
-depending on the OS) that are meant to store credentials for the client
-to establish connections to the EdgeDB instance. For example::
+certificate verification should always be enabled. By default, the
+system-wide trusted CA certificates are usually used to verify server
+certificates. For server certificates that are signed by untrusted CA,
+the users could provide the path to the specific CA certificate file
+they trust - for CLI the option is ``--tls-ca-file``, for language
+bindings the option is usually ``tls_ca_file`` or ``tlsCaFile``.
+
+In order to accept the self-signed certificate, at the time of
+certificate generation, the EdgeDB CLI will also copy the generated
+certificate into the so-called ``credentials.json`` - a group of JSON
+files named after the EdgeDB instance in a well-known place (e.g.
+``~/.config/edgedb/credentials/`` depending on the OS) that are meant to
+store credentials for the client to establish connections to the EdgeDB
+instance. For example::
 
     {
         "port": 10732,
         "user": "edgedb",
         "password": "login-password-in-clear-text",
         "database": "edgedb",
-        "tls_certdata": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagAw..."
+        "tls_cert_data": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagA..."
     }
 
 The language bindings and the REPL should load the certificate from the
-value of ``tls_certdata`` and trust only that certificate for connecting
-to the EdgeDB instance. However, the client should not enable the check
-of the hostname, because 1) the generated self-signed certificate will
-not contain the ``subjectAltName`` extension [7]_ as it's not reliable
-for the CLI to enumerate all hostnames on some non-local installations,
-and 2) hostname check is likely unnecessary for the following scenario.
+value of ``tls_cert_data`` and trust only that certificate for
+connecting to the EdgeDB instance if ``tls_cert_data`` is present.
 
-    Skipping hostname check might change in the future.
+The client allows the user to decide if hostname should be checked. For
+CLI, the options are ``--tls-verify-hostname`` to enable the check, and
+``--no-tls-verify-hostname`` to disable it. For language bindings, the
+option is usually a bool ``tls_verify_hostname``, where ``true`` means
+enabling and ``false`` for disabling. By default, the client will check
+hostname if ``tls_cert_data`` is not present, and skip hostname check
+for self-signed certificate.
 
-For remote clients that don't have access to the ``credentials.json``
-file on the server-side, a new command is proposed to create a local
-``credentials.json`` file for all future connections to the same
-instance::
+In order to connect to remote instances running on a self-signed
+certificate (also works for other purposes), a new CLI command is
+proposed to create a local ``credentials.json`` file to simplify future
+connections::
 
     edgedb authenticate
 
@@ -186,52 +196,43 @@ instance::
     to simplify future connections.
 
     USAGE:
-        edgedb authenticate [OPTIONS] <host:port>
+        edgedb authenticate [FLAGS] [name]
 
     ARGS:
-        <host:port> IP/DNS name and the port of the target instance.
-
-    OPTIONS:
-        --name <name>
+        <name>
             Specify a new instance name for the remote server. If not
             present, the name will be interactively asked.
 
-        --user <user>
-            The database user to log into the remote server. If not
-            present, the username will be interactively asked.
+    FLAGS:
+        --non-interactive
+            Run in non-interactive mode (accepting all defaults)
 
-        --password <password>
-            The password for the database user to log into the remote
-            server. If not present, the username will be interactively
-            asked. This is also available as an environment variable
-            `EDGEDB_PASSWORD`.
+        --quiet
+            Reduce command verbosity.
 
-        --database <database>
-            The name of the default database to connect to.
+Connection parameters are taken from the ``edgedb`` level. For example::
 
-For example::
-
-    $ edgedb authenticate db.example.org:5656
-    User: john
-    Password: ******
-    Default database: edgedb
-    Here is the server certificate:
-      Hostname: db.example.org
-      Org: Company Inc.
-      Fingerprints:
-        SHA-256: 63:2B:11:99:44:40:17:DF:37:FC:C3:DF:0F:3D:15
-    Confirm? [Y/n] Y
-    Login successful.
-    Please specify a name for this instance: [db_example_org_5656]
-    Credential file created, you can now connect to the database with:
-        edgedb -I db_example_org_5656
+    $ edgedb --host db.example.org authenticate
+    Specify the port of the server [default: 5656]:
+    > 5656
+    Specify the database user [default: edgedb]:
+    > john
+    Specify the database name [default: edgedb]:
+    > edgedb
+    Unknown server certificate: SHA1:26725134145cf36c1a18ecd031ee71038b1a1590. Trust? [y/N]
+    > y
+    Password for 'john': ****
+    Specify a new instance name for the remote server [default: db_example_org]:
+    > db_example_org
+    Authentication succeeded. To connect run:
+      edgedb -I db_example_org
 
 The user is responsible for trusting the server certificate, because
 trusting unknown certificates in production may lead to MITM attacks.
 This command also verifies the user login information with the server
 and only create a corresponding ``credentials.json`` file if the login
 is successful. In the above example,
-``~/.edgedb/credentials/db_example_org_5656.json`` is created::
+``~/.config/edgedb/credentials/db_example_org.json`` is created::
 
     {
         "host": "db.example.org",
@@ -239,17 +240,15 @@ is successful. In the above example,
         "user": "john",
         "password": "login-password-in-clear-text",
         "database": "edgedb",
-        "tls_certdata": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagAw..."
+        "tls_cert_data": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagA..."
     }
 
-And then the client logic for server certificate verification is just
-the same as for local development as explained earlier in this section.
-
-    Open Question: The server may be exposing a chain of certificates.
-    We probably want to balance between convenience (trusting root or
-    intermediate certificate) and safety (trusting only the leaf
-    certificate). Do we want to let the user choose which certificate to
-    trust?
+    The server may be advertising a chain of certificates. If the chain
+    cannot pass the verification, ``edgedb authenticate`` will only ask
+    the user to trust the last certificate in the chain - which is
+    usually an (intermediate) CA certificate. Because EdgeDB CLI will
+    always verify the full chain, so only trusting the leaf-most server
+    certificate won't allow the CLI to pass the verification.
 
 
 ALPN and Protocol Changes
@@ -260,6 +259,7 @@ The ALPN support in target programming languages:
 * Python [4]_: ``set_alpn_protocols()`` and ``selected_alpn_protocol()``
 * Go [5]_: ``SupportedProtos`` and ``NegotiatedProtocol``
 * Node.js [6]_: ``ALPNProtocols`` and ``alpnProtocol``
+* Deno [10]_: Client-side ALPN support is not ready yet
 
 For now, the EdgeDB server will advertise two protocols in ALPN (however
 EdgeDB is not limited to only these two for future possibilities):
@@ -323,16 +323,35 @@ Development of EdgeDB
 
 The ``edb server`` command (for core development, but works the same as
 ``edgedb-server`` used by the CLI) will accept similar parameters as the
-CLI has::
+CLI has, but works slightly differently::
 
-    --tls-certfile  Path to a single file in PEM format containing the
-                    certificate as well as any number of CA certificates
-                    needed to establish the certificate’s authenticity.
-                    If not present, a self-signed certificate will be
-                    generated and used instead (for development only!).
-    --tls-keyfile   Path to a file containing the private key. If not
-                    present, the private key will be taken from
-                    --tls-certfile as well.
+    --tls-cert-file PATH           Specify a path to a single file in PEM format
+                                   containing the TLS certificate to run the
+                                   server, as well as any number of CA
+                                   certificates needed to establish the
+                                   certificate’s authenticity. If not present,
+                                   the server will try to find `edbtlscert.pem`
+                                   in the --data-dir if set.
+
+    --tls-key-file PATH            Specify a path to a file containing the
+                                   private key. If not present, the server will
+                                   try to find `edbprivkey.pem` in the --data
+                                   dir if set. If not found, the private key
+                                   will be taken from --tls-cert-file as well.
+                                   If the private key is protected by a
+                                   password, specify it with the environment
+                                   variable:
+                                   EDGEDB_SERVER_TLS_PRIVATE_KEY_PASSWORD.
+
+    --generate-self-signed-cert    When set, a new self-signed certificate will
+                                   be generated together with its private key if
+                                   no cert is found in the data dir. The
+                                   generated files will be stored in the data
+                                   dir, or a temporary dir (deleted once the
+                                   server is stopped) if there is no data dir.
+                                   This option conflicts with --tls-cert-file
+                                   and --tls-key-file, and defaults to True in
+                                   dev mode.
 
 The Python builtin TLS support will be used to handle the certificates
 and ALPN, and the TLS transport implementation in uvloop is used for the
@@ -343,44 +362,34 @@ TLS protocol versions to ``SSLContext.minimum_version`` and
 corresponding EdgeDB configs mentioned in previous chapter, together
 with the other minor tunings for ``ssl.SSLContext``.
 
-``--tls-certfile``, ``--tls-keyfile`` are directly the parameters of
+``--tls-cert-file``, ``--tls-key-file`` are directly the parameters of
 ``ssl.SSLContext.load_cert_chain()``, while the EdgeDB server would
 accept a password for the private key as an environment variable
-``EDGEDB_TLS_PRIVATE_KEY_PASSWORD``. However, the ``password`` argument
-of ``load_cert_chain()`` must always be set to a Python function to
-avoid triggering OpenSSL to prompt for password. If the env var is not
-set, simply return ``b""`` in the function - it will not be invoked if
-the private key is not protected by a password.
+``EDGEDB_SERVER_TLS_PRIVATE_KEY_PASSWORD``. However, the ``password``
+argument of ``load_cert_chain()`` must always be set to a Python
+function to avoid triggering OpenSSL to prompt for password. If the env
+var is not set, simply return ``b""`` in the function - it will not be
+invoked if the private key is not protected by a password.
 
-When ``--tls-certfile`` is not present and the server is in ``devmode``
-or ``testmode``, the server will use the CLI to generate a self-signed
-certificate and use it to run the TLS server for development and
-testing. Particularly, the server will use a "hidden" option of the CLI
-subcommand ``authenticate`` like this::
+The ``--generate-self-signed-cert`` will - as explained in the help
+message above - automatically generate self-signed certificate using
+the Python cryptography [11]_ library. If certificate files pre-exist,
+the ``--generate-self-signed-cert`` option will not generate new files
+and overwrite.
 
-    edgedb authenticate \
-        --generate-dev-cert \
-        --name local-dev \
-        --user edgedb \
-        --password login-password-in-clear-text \
-        --database edgedb \
-        :5656
+For core EdgeDB development, the dev REPL ``edb cli`` command is also
+enhanced with an additional call to ``edgedb authenticate`` to trust the
+generated self-signed certificate in local server::
 
-And it overwrites ``~/.edgedb/credentials/local-dev.json`` with::
+    edgedb authenticate _localdev --non-interactive
 
-    {
-        "port": 5656,
-        "user": "edgedb",
-        "password": "login-password-in-clear-text",
-        "database": "edgedb",
-        "tls_certdata": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagAw..."
-    }
+And ``edb cli`` by default invokes ``edgedb -I _localdev`` for
+convenience.
 
-And echo back the generated private key and certificate concatenated in
-standard output so that the server could simply read and use. So that
-the EdgeDB developer could always use ``edgedb -Ilocal-dev`` to access
-the dev server. The test suite could also take advantage from this mimic
-of real-life EdgeDB scenario to cover some real cases.
+For running tests, the path to the TLS certificate file in use is echoed
+to the socket or file specified in ``--emit-server-status`` under JSON
+key ``tls_cert_file``, so that the testing client could extract the path
+to the certificate and load the TLS context.
 
 Another server-side topic that was discussed in this RFC is the UNIX
 domain socket. It is proposed that the non-admin UNIX socket support
@@ -432,27 +441,29 @@ Backwards Compatibility
 
 While TLS will be enforced by default, compatible mode is still
 available for the server before EdgeDB 1.0, but it is only for the
-EdgeDB developers and should not be enabled by the users.
+EdgeDB developers (or special use cases like Deno clients) and should
+not be enabled by the users.
 
 +------------+----------------+----------------+---------------------------+
 |            | Old Server     | New Server     | New Server in Compat Mode |
 +============+================+================+===========================+
 | Old Client | Accessible     | Friendly Error | Accessible                |
 +------------+----------------+----------------+---------------------------+
-| New Client | Friendly Error | Accessible     | Accessible                |
+| New Client | Accessible     | Accessible     | Accessible                |
 +------------+----------------+----------------+---------------------------+
 
 The EdgeDB development server (``edb server``) will provide a hidden
-option ``--allow-non-tls`` to run the server in compatible mode for
-development and testing only. It will fallback to cleartext transport if
-the TLS handshake fails. This option is not available in the EdgeDB CLI
-(``edgedb server``).
+option ``--allow-cleartext-connections`` to run the server in compatible
+mode for development and testing only. It will fallback to cleartext
+transport if the TLS handshake fails. This option is not available in
+the EdgeDB CLI (``edgedb instance``).
 
-On the other hand, without ``--allow-non-tls``, the new server will
-return a user-friendly error in plain text if the SSL handshake fails,
-in binary protocol or HTTP depending on again the magical first-byte.
-Similarly, if the new client could not establish a TLS connection, it
-should raise a proper error with the reason.
+On the other hand, without ``--allow-cleartext-connections``, the new
+server will return a user-friendly error in plain text if the SSL
+handshake fails, in binary protocol or HTTP depending on again the
+magical first-byte. Similarly, if the new client could not establish a
+TLS connection on new servers based on the protocol version, it should
+raise a proper error with the reason.
 
 
 CLI and Server Compatibility
@@ -577,6 +588,12 @@ Rejected Alternative Ideas
     in ``metadata.json`` and feed it to ``edgedb-server`` as an
     environment variable.
 
+12. Generate self-signed certificate in the CLI.
+
+    We tried this and it works fine for most of the cases. However, we
+    would need the certificate generation feature in some cases where
+    CLI is not convenient, e.g. edgedb-python testing CI runs server
+    directly using ``edgedb-server`` command.
 
 .. [1] https://datatracker.ietf.org/doc/html/rfc5246
 .. [2] https://datatracker.ietf.org/doc/html/rfc7301
@@ -587,3 +604,5 @@ Rejected Alternative Ideas
 .. [7] https://tools.ietf.org/search/rfc2818#section-3.1
 .. [8] https://github.com/edgedb/webapp-bench
 .. [9] https://github.com/edgedb/rfcs/blob/master/text/1001-edgedb-server-control.rst#instance-names
+.. [10] https://github.com/denoland/deno/issues/11479
+.. [11] https://cryptography.io/en/latest/
