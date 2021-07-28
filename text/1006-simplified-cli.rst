@@ -97,19 +97,17 @@ the EdgeDB RC1 release::
     project list               List all projects
     project unlink             Clean-up the project configuration
 
-    server info                Show locally installed EdgeDB servers
-    server install             Install an EdgeDB server locally
-    server uninstall           Uninstall an EdgeDB server locally
-    server upgrade             Upgrade installations and instances
-    server list-versions       List available and installed versions of the server
-
     instance create            Initialize a new server instance
     instance status            Show statuses of all or of a matching instance
     instance start             Start an instance
     instance stop              Stop an instance
     instance restart           Restart an instance
-    instance destroy           Destroy an instance and remove the data
+    instance destroy           Destroy an instance and remove its data
     instance logs              Show logs of an instance
+    instance upgrade           Upgrade an instance to a newer server version
+    instance reset-password    Reset instance admin password
+    instance link              Link a remote instance
+    instance unlink            Unlink a remote instance
 
     database create            Create a new DB
     database drop              Drop the DB
@@ -120,13 +118,14 @@ the EdgeDB RC1 release::
     list                       List matching database objects by name and type
                                (run `edgedb list --help` for more info)
 
-    self upgrade               Upgrade this tool to the latest version
-    self uninstall             Uninstall this tool
+    server                     Manage local installations of EdgeDB server
 
+    cli upgrade                Upgrade the 'edgedb' command to the latest version
+    cli uninstall              Uninstall the 'edgedb' command
 
-The output of ``edgedb inspect --help``::
+The output of ``edgedb list --help``::
 
-  edgedb inspect [SUBCOMMAND]
+  edgedb list [SUBCOMMAND]
 
   SUBCOMMANDS:
 
@@ -138,6 +137,31 @@ The output of ``edgedb inspect --help``::
     list roles                 List roles
     list types                 List object types
     list scalars               List scalar types
+
+The output of ``edgedb server --help``::
+
+    server info                Show locally installed EdgeDB servers
+    server install             Install an EdgeDB server locally
+    server uninstall           Uninstall an EdgeDB server locally
+    server list-versions       List available and installed versions of the server
+
+
+Interactivity
+=============
+
+We assume that most of the time the CLI will be used by humans than in scripts.
+Therefore, commands might prompt the user about any missing information
+interactively.
+
+``edgedb`` command should accept a ``--non-interactive`` flag to disable
+interactivity for any subcommand, e.g.::
+
+    $ edgedb --non-interactive
+    Error: cannot run EdgeDB REPL in non-interactive mode.
+
+    $ edgedb --non-interactive instance link foo
+    Error: instance name "foo" is already taken.
+    Pass '--override' to override it.
 
 
 Design Considerations
@@ -199,8 +223,8 @@ command group into two:
 * ``edgedb instance`` to control locally (and remotely, in the future)
   running instances of specific EdgeDB Server versions.
 
-The ``edgedb server reset-password`` command is removed as it does not
-support instances running via Docker.
+All of the ``instance`` subcommands should accept an instance name or a name
+filter as their first argument.
 
 
 RFC 1003 -- Rejected Ideas
@@ -290,12 +314,12 @@ Changes in the CLI:
 ``edgedb project``                Keep as is
 ``edgedb query``                  Remove
 ``edgedb restore``                Keep as is
-``edgedb self-upgrade``           Rename to ``edgedb self upgrade``
+``edgedb self-upgrade``           Rename to ``edgedb cli upgrade``
 ``edgedb server info``            Keep as is
 ``edgedb server install``         Keep as is
 ``edgedb server uninstall``       Keep as is
-``edgedb server upgrade``         Keep as is
 ``edgedb server list-versions``   Keep as is
+``edgedb server upgrade``         Rename to ``edgedb instance upgrade``
 ``edgedb server init``            Rename to ``edgedb instance create``
 ``edgedb server status``          Rename to ``edgedb instance status``
 ``edgedb server start``           Rename to ``edgedb instance start``
@@ -303,7 +327,7 @@ Changes in the CLI:
 ``edgedb server restart``         Rename to ``edgedb instance restart``
 ``edgedb server destroy``         Rename to ``edgedb instance destroy``
 ``edgedb server logs``            Rename to ``edgedb instance logs``
-``edgedb server reset-password``  Remove
+``edgedb server reset-password``  Rename to ``edgedb instance reset-password``
 ``edgedb show-status``            Rename to ``edgedb migration status``
 ================================= ===============================================
 
@@ -331,6 +355,13 @@ Changes in REPL:
 ``\list-casts``                   Rename to ``\list casts``
 ================================= ===============================================
 
+Changes to other command line flags:
+
+================================= ===============================================
+        Old Flag                                     Comments
+================================= ===============================================
+``--no-version-check``            Rename to ``--no-cli-update-check``
+================================= ===============================================
 
 Backwards Compatibility
 =======================
