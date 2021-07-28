@@ -159,7 +159,7 @@ bindings the option is usually ``tls_ca_file`` or ``tlsCaFile``.
 
 In order to accept the self-signed certificate, at the time of
 certificate generation, the EdgeDB CLI will also copy the generated
-certificate into the so-called ``credentials.json`` - a group of JSON
+certificate into the so-called credentials JSON - a group of JSON
 files named after the EdgeDB instance in a well-known place (e.g.
 ``~/.config/edgedb/credentials/`` depending on the OS) that are meant to
 store credentials for the client to establish connections to the EdgeDB
@@ -180,14 +180,14 @@ connecting to the EdgeDB instance if ``tls_cert_data`` is present.
 The client allows the user to decide if hostname should be checked. For
 CLI, the options are ``--tls-verify-hostname`` to enable the check, and
 ``--no-tls-verify-hostname`` to disable it. For language bindings, the
-option is usually a bool ``tls_verify_hostname``, where ``true`` means
-enabling and ``false`` for disabling. By default, the client will check
-hostname if ``tls_cert_data`` is not present, and skip hostname check
-for self-signed certificate.
+option is usually a boolean ``tls_verify_hostname``, where ``true``
+means enabling and ``false`` for disabling. By default, the client will
+check hostname if ``tls_cert_data`` is not present, and skip hostname
+check for self-signed certificate.
 
 In order to connect to remote instances running on a self-signed
 certificate (also works for other purposes), a new CLI command is
-proposed to create a local ``credentials.json`` file to simplify future
+proposed to create a local credentials JSON file to simplify future
 connections::
 
     edgedb authenticate
@@ -230,8 +230,8 @@ Connection parameters are taken from the ``edgedb`` level. For example::
 The user is responsible for trusting the server certificate, because
 trusting unknown certificates in production may lead to MITM attacks.
 This command also verifies the user login information with the server
-and only create a corresponding ``credentials.json`` file if the login
-is successful. In the above example,
+and only create a corresponding credentials JSON file if the login is
+successful. In the above example,
 ``~/.config/edgedb/credentials/db_example_org.json`` is created::
 
     {
@@ -430,10 +430,10 @@ role in a certain EdgeDB instance, and use the two files to establish a
 connection to that EdgeDB server. The private key passphrase - if set -
 must be securely provided through either environment variables, or API
 parameters (following Python ``SSLContext.load_cert_chain()`` style).
-We may be able to place the client certificate in the
-``credentials.json`` file so that the user don't have to bother dealing
-with the certificates any more. And we could likely skip the passphrase
-for development client certificates.
+We may be able to place the client certificate in the credentials JSON
+file so that the user don't have to bother dealing with the certificates
+any more. And we could likely skip the passphrase for development client
+certificates.
 
 
 Backwards Compatibility
@@ -539,14 +539,14 @@ Rejected Alternative Ideas
    As the self-signed certificates are meant for development only, we
    didn't find a scenario where a passphrase is useful.
 
-6. Don't store user-provided cert passphrase in ``credentials.json``.
+6. Don't store user-provided cert passphrase in credentials JSON.
 
    Storing password in a file is usually risky. The proposed way was
    either using an environment variable, or fetch the passphrase through
    a user-specified command like Postgres. Because EdgeDB server
    instances can be configured to start automatically, using env var is
    just the same as storing in a file, so only the Postgres way is safe.
-   For now, we're just assuming ``credentials.json`` is secure, as it is
+   For now, we're just assuming credentials JSON is secure, as it is
    designed to store passwords. Further comments are welcome.
 
 7. Add a client-side switch to manually trust self-signed certificates.
@@ -575,7 +575,7 @@ Rejected Alternative Ideas
     remote Postgres clusters - the server won't use a persistent data
     directory. So we decided to just pass in the paths to the key pair.
 
-11. Store the private key and passphrase in ``credentials.json``.
+11. Store the private key and passphrase in credentials JSON file.
 
     This file is not supposed to be used by the server, and the
     passphrase is only needed by the server. Another previous attempt
