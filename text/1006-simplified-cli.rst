@@ -119,9 +119,10 @@ the EdgeDB RC1 release::
                                (run `edgedb list --help` for more info)
 
     server                     Manage local installations of EdgeDB server
+                               (run `edgedb server --help` for more info)
 
-    cli upgrade                Upgrade the 'edgedb' command to the latest version
-    cli uninstall              Uninstall the 'edgedb' command
+    cli upgrade                Upgrade the `edgedb` command to the latest version
+    cli uninstall              Uninstall the `edgedb` command
 
 The output of ``edgedb list --help``::
 
@@ -139,6 +140,10 @@ The output of ``edgedb list --help``::
     list scalars               List scalar types
 
 The output of ``edgedb server --help``::
+
+  edgedb server [SUBCOMMAND]
+
+  SUBCOMMANDS:
 
     server info                Show locally installed EdgeDB servers
     server install             Install an EdgeDB server locally
@@ -246,10 +251,9 @@ tweaked until it hits the perfect balance of being readable and informative.
 
 The less natural-sounding commands argument is valid, as
 ``edgedb create-migration`` certainly sounds more natural than
-``edgedb migration create``. But given that we will likely have between more
+``edgedb migration create``. But given that we will likely have more
 than 30 subcommands, it is clear that giving users a way to organize
-subcommands mentally in categories to memorize the overall structure is more
-important than "making commands sound like plain English".
+subcommands mentally in categories is more important.
 
 The proposed change is indeed very disruptive but we believe it is still worth
 implementing it before 1.0. It is important to understand that RFC 1003 was
@@ -355,7 +359,7 @@ Changes in REPL:
 ``\list-casts``                   Rename to ``\list casts``
 ================================= ===============================================
 
-Changes to other command line flags:
+Changes to command line flags:
 
 ================================= ===============================================
         Old Flag                                     Comments
