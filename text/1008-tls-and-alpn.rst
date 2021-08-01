@@ -190,13 +190,13 @@ certificate (also works for other purposes), a new CLI command is
 proposed to create a local credentials JSON file to simplify future
 connections::
 
-    edgedb authenticate
+    edgedb instance link
 
-    Authenticate to a remote EdgeDB instance and assign an instance name
-    to simplify future connections.
+    Link to a remote EdgeDB instance and assign an instance name to
+    simplify future connections.
 
     USAGE:
-        edgedb authenticate [FLAGS] [name]
+        edgedb instance link [FLAGS] [name]
 
     ARGS:
         <name>
@@ -210,9 +210,9 @@ connections::
         --quiet
             Reduce command verbosity.
 
-Connection parameters are taken from the ``edgedb`` level. For example::
+Connection parameters are also accepted. For example::
 
-    $ edgedb --host db.example.org authenticate
+    $ edgedb instance link --host db.example.org
     Specify the port of the server [default: 5656]:
     > 5656
     Specify the database user [default: edgedb]:
@@ -224,7 +224,7 @@ Connection parameters are taken from the ``edgedb`` level. For example::
     Password for 'john': ****
     Specify a new instance name for the remote server [default: db_example_org]:
     > db_example_org
-    Authentication succeeded. To connect run:
+    Successfully linked to remote instance. To connect run:
       edgedb -I db_example_org
 
 The user is responsible for trusting the server certificate, because
@@ -243,8 +243,15 @@ successful. In the above example,
         "tls_cert_data": "-----BEGIN CERTIFICATE-----\nMIICvjCCAaagA..."
     }
 
+In addition, ``edgedb instance unlink`` is also proposed to remove the
+link to the remote instances. It simply accepts a name of the remote
+instance. However, ``unlink`` will fail if the name points to a local
+instance. ``edgedb instance status`` is also updated to include the
+remote instances, whose statuses and versions will be probed in parallel
+with a short timeout.
+
     The server may be advertising a chain of certificates. If the chain
-    cannot pass the verification, ``edgedb authenticate`` will only ask
+    cannot pass the verification, ``edgedb instance link`` will only ask
     the user to trust the last certificate in the chain - which is
     usually an (intermediate) CA certificate. Because EdgeDB CLI will
     always verify the full chain, so only trusting the leaf-most server
@@ -378,10 +385,10 @@ the ``--generate-self-signed-cert`` option will not generate new files
 and overwrite.
 
 For core EdgeDB development, the dev REPL ``edb cli`` command is also
-enhanced with an additional call to ``edgedb authenticate`` to trust the
-generated self-signed certificate in local server::
+enhanced with an additional call to ``edgedb instance link`` to trust
+the generated self-signed certificate in local server::
 
-    edgedb authenticate _localdev --non-interactive
+    edgedb instance link _localdev --non-interactive
 
 And ``edb cli`` by default invokes ``edgedb -I _localdev`` for
 convenience.
