@@ -123,7 +123,7 @@ CLI
 
 3. Start the release flow by going to:
 
-   - https://github.com/edgedb/edgedb-cli/actions?query=workflow%3A%22Build%2C+Test%2C+and+Publish+a+Release%22
+   - https://github.com/edgedb/edgedb-cli/actions/workflows/release.yml?query=workflow%3A%22Build%2C+Test%2C+and+Publish+a+Release%22
    - select the newly pushed release branch from the dropdown and press "Run Workflow"
 
 Server
@@ -152,7 +152,7 @@ Server
 
 4. Start the release flow by going to:
 
-   - https://github.com/edgedb/edgedb/actions?query=workflow%3A%22Build+Test+and+Publish+a+Release%22
+   - https://github.com/edgedb/edgedb/actions/workflows/release.yml?query=workflow%3A%22Build+Test+and+Publish+a+Release%22
    - select the newly pushed release branch from the dropdown and press "Run Workflow"
 
 5. When all is good, you can check out the tag locally, build EdgeDB
