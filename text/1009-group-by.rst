@@ -219,7 +219,7 @@ Computing the ratio of each card's cost to the average of its element::
           name,
           cost_ratio := .cost / math::mean(g.elements.cost)
       })
-  ) ORDER BY name;
+  ) ORDER BY .name;
 
 ::
 
