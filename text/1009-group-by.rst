@@ -33,7 +33,7 @@ be expressed as::
       } ORDER BY .element
   )
 
-This query, while it gets the job done is pretty ugly and
+This query, while it gets the job done is fairly complex and
 distressingly manual. On top of that, it generates a bad query that
 needs to do a subquery scan for each element!
 
