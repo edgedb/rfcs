@@ -63,7 +63,7 @@ aggregation, in most cases.
        ...
        [<aliasN> := ] <expr>
 
-   [USING <alias>, ... ]       # specify which parameters will
+   [GROUPINGS (<alias>, ...) ] # specify which parameters will
                                # be used to partition the set;
                                # if unspecified, use all aliases declared in BY
 
@@ -74,7 +74,7 @@ partial path reference such as ``.name``, and ``.name`` is treated as
 equivalent to ``name := .name``, except that ``name`` is not made available
 to later aliases in the ``BY`` clause.
 
-The ``USING`` clause, if omitted, is taken to be the list of all specified
+The ``GROUPINGS`` clause, if omitted, is taken to be the list of all specified
 aliases in the ``BY`` clause. This means it is usually superfluous in this
 initial pre-grouping sets version, but it does allow aliases in the BY
 clause to be defined solely as a helper to later aliases.
@@ -84,7 +84,7 @@ The optional alias in the subject will be bound in the ``BY`` clauses.
 The *behavior* of ``GROUP BY`` is to evaluate the subject expression and
 then, for each element of the set, evaluate each of the ``BY``
 expressions (which much be singletons). Then a grouping key is created
-based on the ``USING`` clause, and the objects are aggregated into groups
+based on the ``GROUPINGS`` clause, and the objects are aggregated into groups
 with matching grouping keys.
 
 The output is reflected in an ad-hoc free object of the following form::
@@ -101,16 +101,15 @@ Grouping sets
 -------------
 
 To extend this to support multiple grouping sets, we alter the syntax for the
-``USING`` clause.
+``GROUPINGS`` clause.
 
-To do this, we generalize ``USING`` as such::
+To do this, we generalize ``GROUPINGS`` as such::
 
-  [USING <grouping-element>, ...]
+  [GROUPINGS <grouping-element>, ...]
 
 where ``grouping-element`` is one of::
 
-  <alias-or-list>
-  {<grouping-element>, ...}  # grouping sets
+  (<ident>, ...)
   ROLLUP (<alias-or-list>, ...)
   CUBE (<alias-or-list>, ...)
 
@@ -121,26 +120,19 @@ and ``alias-or-list`` is one of::
   (<ident>, ...)
 
 
-``ROLLUP`` and ``CUBE`` are basic syntactic sugar for grouping sets.
-``ROLLUP`` groups by all prefixes of a list of elements, so
-``ROLLUP (a, b, c)`` is equivalent to ``{(), (a), (a, b), (a, b, c)}``
-while ``CUBE`` considers all elements of the power set, so that
-``CUBE (a, b)`` is equivalent to ``{(), (a), (b), (a, b)}``.
-These elements can be lists of aliases, also.
-
+Each ``<grouping-element>`` specifies one or more grouping sets.
 When grouping by a grouping set, we group by *each* element of the
-grouping set. The ``grouping`` element of the output shape indicates
+grouping set.
+The ``grouping`` element of the output shape indicates
 which grouping set a group is from, by listing all the keys used in
 the group, in the order they appeared in the ``BY`` clause.
 
-When there are multiple top-level ``grouping-element``s, and some are
-grouping sets, then the cartesian product of them is taken to determine
-the final grouping sets. That is ``a, {b, c}`` is equivalent to
-``{(a, b), (a, c)}``.
-
-This largely follows SQL. In this proposal, we use set literals to
-indicate grouping sets, though we could also follow SQL even more and
-write ``GROUPING SETS`` or ``SETS`` or some such.
+``ROLLUP`` and ``CUBE`` are basic syntactic sugar for grouping sets.
+``ROLLUP`` groups by all prefixes of a list of elements, so
+``ROLLUP (a, b, c)`` is equivalent to ``(), (a), (a, b), (a, b, c)``
+while ``CUBE`` considers all elements of the power set, so that
+``CUBE (a, b)`` is equivalent to ``(), (a), (b), (a, b)``.
+These elements can be lists of aliases, also.
 
 Reference implementation
 ========================
@@ -240,7 +232,7 @@ owners" combination bucket, as well as those things individually::
 
   SELECT (
     GROUP Card BY .element, nowners := count(.owners)
-    USING CUBE (element, nowners)
+    GROUPINGS CUBE (element, nowners)
   ) {
       key: {element, nowners},
       num := count(.elements),
@@ -287,7 +279,7 @@ Non-shape based GROUP BY
 ------------------------
 
 The initial recent proposal, heavily inspired by the original deleted
-EdgeQL ``GROUP BY`` [1]_, was::
+EdgeQL ``GROUP BY`` [1]_, was (approximately)::
 
   GROUP
       [<alias> := ] <expr>
@@ -298,7 +290,7 @@ EdgeQL ``GROUP BY`` [1]_, was::
       ...
       <aliasN> := <expr>
 
-  [USING <alias>, ... ]       # specify which parameters will
+  [GROUPINGS <alias>, ... ]   # specify which parameters will
                               # be used to partition the set;
                               # if unspecified, use all aliases declared in BY
 
