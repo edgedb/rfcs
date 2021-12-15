@@ -134,6 +134,9 @@ while ``CUBE`` considers all elements of the power set, so that
 ``CUBE (a, b)`` is equivalent to ``(), (a), (b), (a, b)``.
 These elements can be lists of aliases, also.
 
+If a grouping set occurs multiple times, the group still appears in
+the output just once.
+
 Reference implementation
 ========================
 
