@@ -259,6 +259,56 @@ owners" combination bucket, as well as those things individually::
        {key: {element: 'Water', nowners: 4}, num: 2, grouping: ['nowners', 'element']}
    ]
 
+Comparison with SQL
+===================
+
+In SQL, ``GROUP BY`` is a clause that may be applied to ``SELECT``,
+not a standalone statement. SQL ``GROUP BY`` changes the meaning
+of the statement such that aggregate functions are computed across
+all rows in a *group*, rather than across all rows. Additionally,
+it requires all columns other than the grouped keys to be referenced
+only as arguments to aggregate functions.
+
+We want our ``GROUP`` to be more flexible than SQL's. Since we support
+sets as a first class object, we directly expose the groups as a set,
+which is output as an element of a free shape. This allows directly
+outputting the full groups, as well as more complex queries such as
+the "ratio of each card's cost" example above.
+
+The big advantage of our ``GROUP`` is that all of the results are
+exposed in ways which are idiomatic to the language and easily
+composable.
+
+
+Implementation notes
+--------------------
+
+The increased flexibility comes with a downside, however, which is that
+mapping our ``GROUP`` to SQL's may be difficult.
+
+In basic, common cases, where the result of the ``GROUP`` is
+immediately consumed by a shape that uses ``.elements`` only in the
+argument to aggregates, we should be able to directly take advantage
+of SQL ``GROUP BY`` with little drama.
+
+In the case where a ``GROUP`` is directly presented to the output, we
+should also be able to use SQL ``GROUP BY`` without much trouble,
+since ``array_agg``, used to produce our serialized output, is an
+aggregate function.
+
+That is also the core of an implementation strategy for the "general
+case" of ``GROUP`` that I am fairly confident is reasonably
+implementable: use ``array_agg`` in the SQL ``GROUP BY`` and treat it
+as a materialized computed set.
+
+We've discussed using window functions to implement the general
+case. We'll need to dicuss this more, but after looking at the docs,
+it's not obvious to me how that would work in general. It might be
+doable for certain cases, like the "ratio of each card's cost"
+example?
+
+I think using window functions in the "fully general" case can't work,
+since they don't seem to support grouping sets?
 
 
 Backwards Compatibility
