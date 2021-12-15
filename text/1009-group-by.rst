@@ -63,7 +63,7 @@ aggregation, in most cases.
        ...
        [<aliasN> := ] <expr>
 
-   [GROUPINGS (<alias>, ...) ] # specify which parameters will
+   [USING (<alias>, ...) ] # specify which parameters will
                                # be used to partition the set;
                                # if unspecified, use all aliases declared in BY
 
@@ -74,7 +74,7 @@ partial path reference such as ``.name``, and ``.name`` is treated as
 equivalent to ``name := .name``, except that ``name`` is not made available
 to later aliases in the ``BY`` clause.
 
-The ``GROUPINGS`` clause, if omitted, is taken to be the list of all specified
+The ``USING`` clause, if omitted, is taken to be the list of all specified
 aliases in the ``BY`` clause. This means it is usually superfluous in this
 initial pre-grouping sets version, but it does allow aliases in the BY
 clause to be defined solely as a helper to later aliases.
@@ -84,7 +84,7 @@ The optional alias in the subject will be bound in the ``BY`` clauses.
 The *behavior* of ``GROUP BY`` is to evaluate the subject expression and
 then, for each element of the set, evaluate each of the ``BY``
 expressions (which much be singletons). Then a grouping key is created
-based on the ``GROUPINGS`` clause, and the objects are aggregated into groups
+based on the ``USING`` clause, and the objects are aggregated into groups
 with matching grouping keys.
 
 The output is reflected in an ad-hoc free object of the following form::
@@ -101,11 +101,11 @@ Grouping sets
 -------------
 
 To extend this to support multiple grouping sets, we alter the syntax for the
-``GROUPINGS`` clause.
+``USING`` clause.
 
-To do this, we generalize ``GROUPINGS`` as such::
+To do this, we generalize ``USING`` as such::
 
-  [GROUPINGS <grouping-element>, ...]
+  [USING <grouping-element>, ...]
 
 where ``grouping-element`` is one of::
 
@@ -235,7 +235,7 @@ owners" combination bucket, as well as those things individually::
 
   SELECT (
     GROUP Card BY .element, nowners := count(.owners)
-    GROUPINGS CUBE (element, nowners)
+    USING CUBE (element, nowners)
   ) {
       key: {element, nowners},
       num := count(.elements),
@@ -332,7 +332,7 @@ Non-shape based GROUP BY
 ------------------------
 
 The initial recent proposal, heavily inspired by the original deleted
-EdgeQL ``GROUP BY`` [1]_, was (approximately)::
+EdgeQL ``GROUP BY`` [1]_, was::
 
   GROUP
       [<alias> := ] <expr>
@@ -343,7 +343,7 @@ EdgeQL ``GROUP BY`` [1]_, was (approximately)::
       ...
       <aliasN> := <expr>
 
-  [GROUPINGS <alias>, ... ]   # specify which parameters will
+  [USING <alias>, ... ]       # specify which parameters will
                               # be used to partition the set;
                               # if unspecified, use all aliases declared in BY
 
