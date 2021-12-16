@@ -4,13 +4,13 @@
     Type: Feature
     Created: 2021-12-10
     Authors: Michael J. Sullivan <sully@msully.net>
-    RFC PR: `edgedb/rfcs#00XX <https://github.com/edgedb/rfcs/pull/XX>`_
+    RFC PR: `edgedb/rfcs#0039 <https://github.com/edgedb/rfcs/pull/39>`_
 
-==================
-RFC 1009: GROUP BY
-==================
+===============
+RFC 1009: GROUP
+===============
 
-This RFC proposes adding a `GROUP ... BY` statement to EdgeQL to
+This RFC proposes adding a ``GROUP`` statement to EdgeQL to
 perform aggregation.
 
 
