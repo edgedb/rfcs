@@ -46,7 +46,7 @@ aggregation features in compilation.
 Specification
 =============
 
-The new ``GROUP ... BY`` proposal is an objects-forwards proposal,
+The new ``GROUP`` proposal is an objects-forwards proposal,
 which produces a set of free objects containing each produced
 group. The encouraged idiom will be to immediately process the results
 with a ``SELECT`` statement containing a shape that performs
@@ -57,34 +57,32 @@ aggregation, in most cases.
    GROUP
        [<alias> := ] <expr>
 
-   BY
-       [<alias1> := ] <expr>,  # define parameters to use for
-       [<alias2> := ] <expr>,  # grouping
+   [USING
+       <alias1> := <expr>,     # define parameters to use for
+       <alias2> := <expr>,     # grouping
        ...
-       [<aliasN> := ] <expr>
+       <aliasN> := <expr>]
 
-   [USING (<alias>, ...) ] # specify which parameters will
+   BY <grouping-ref>, ...      # specify which parameters will
                                # be used to partition the set;
-                               # if unspecified, use all aliases declared in BY
+
+where a ``<grouping-ref>`` is one of::
+
+  <identifier>
+  .<path-name>
 
 
+The ``USING`` clause defines a set of aliases. Each alias is available in
+later alias definitions and in the ``BY`` clause.
 
-The aliases in the BY clause are optional only if the expression is an
-partial path reference such as ``.name``, and ``.name`` is treated as
-equivalent to ``name := .name``, except that ``name`` is not made available
-to later aliases in the ``BY`` clause.
+The ``BY`` clause may refer to aliases as well as to immediate partial
+paths of the subject expression.
 
-The ``USING`` clause, if omitted, is taken to be the list of all specified
-aliases in the ``BY`` clause. This means it is usually superfluous in this
-initial pre-grouping sets version, but it does allow aliases in the BY
-clause to be defined solely as a helper to later aliases.
 
-The optional alias in the subject will be bound in the ``BY`` clauses.
-
-The *behavior* of ``GROUP BY`` is to evaluate the subject expression and
-then, for each element of the set, evaluate each of the ``BY``
+The *behavior* of ``GROUP`` is to evaluate the subject expression and
+then, for each element of the set, evaluate each of the ``USING``
 expressions (which much be singletons). Then a grouping key is created
-based on the ``USING`` clause, and the objects are aggregated into groups
+based on the ``BY`` clause, and the objects are aggregated into groups
 with matching grouping keys.
 
 The output is reflected in an ad-hoc free object of the following form::
@@ -96,46 +94,60 @@ The output is reflected in an ad-hoc free object of the following form::
   }
 
 
-
 Grouping sets
 -------------
 
 To extend this to support multiple grouping sets, we alter the syntax for the
-``USING`` clause.
+``BY`` clause.
 
-To do this, we generalize ``USING`` as such::
+To do this, we generalize ``BY`` as such::
 
-  [USING <grouping-element>, ...]
+  BY <grouping-element>, ...
 
 where ``grouping-element`` is one of::
 
-  (<ident>, ...)
-  ROLLUP (<alias-or-list>, ...)
-  CUBE (<alias-or-list>, ...)
+  <ref-or-list>
+  {<grouping-element>, ...}
+  ROLLUP(<ref-or-list>, ...)
+  CUBE(<ref-or-list>, ...)
 
-and ``alias-or-list`` is one of::
+and ``ref-or-list`` is one of::
 
-  <ident>
+  <grouping-ref>
   ()
-  (<ident>, ...)
+  (<grouping-ref>, ...)
 
 
-Each ``<grouping-element>`` specifies one or more grouping sets.
+Braces specify a grouping set (and can be thought of as declaring
+a set of keys, using set syntax.)
 When grouping by a grouping set, we group by *each* element of the
 grouping set.
 The ``grouping`` element of the output shape indicates
 which grouping set a group is from, by listing all the keys used in
 the group, in the order they appeared in the ``BY`` clause.
 
+When there are multiple top-level ``grouping-element``s, and some are
+grouping sets, then the cartesian product of them is taken to determine
+the final grouping sets. That is ``a, {b, c}`` is equivalent
+to ``{(a, b), (a, c)}``. The best way to think about this is as analogue
+of EdgeQL's normal evaluation rules, which computes cross products
+whenever lifting operators over sets.
+
+
 ``ROLLUP`` and ``CUBE`` are basic syntactic sugar for grouping sets.
 ``ROLLUP`` groups by all prefixes of a list of elements, so
-``ROLLUP (a, b, c)`` is equivalent to ``(), (a), (a, b), (a, b, c)``
-while ``CUBE`` considers all elements of the power set, so that
-``CUBE (a, b)`` is equivalent to ``(), (a), (b), (a, b)``.
+``ROLLUP (a, b, c)`` is equivalent to
+``{(), (a), (a, b), (a, b, c)}`` while ``CUBE``
+considers all elements of the power set, so that
+``CUBE (a, b)`` is equivalent to ``{(), (a), (b), (a, b)}``.
 These elements can be lists of aliases, also.
 
 If a grouping set occurs multiple times, the group still appears in
 the output just once.
+
+This all basically exactly follows SQL, except that we write braces
+instead of ``GROUPING SETS``.
+
 
 Reference implementation
 ========================
@@ -234,8 +246,9 @@ Counting the number of cards in each possible "element", "number of
 owners" combination bucket, as well as those things individually::
 
   SELECT (
-    GROUP Card BY .element, nowners := count(.owners)
-    USING CUBE (element, nowners)
+    GROUP Card
+	USING nowners := count(.owners)
+    BY CUBE (.element, nowners)
   ) {
       key: {element, nowners},
       num := count(.elements),
@@ -317,8 +330,12 @@ since they don't seem to support grouping sets?
 Backwards Compatibility
 =======================
 
-There are no backwards compatibility concerns. ``GROUP`` is already a
-reserved keyword in the implementation.
+``BY`` needs to be made into a reserved keyword in order for the
+``USING`` clause to permit a trailing comma. (Otherwise we can't
+distinguish between the start of the ``BY`` clause and the definition
+of an alias named ``BY`` at one token of lookahead.)
+
+``GROUP`` is already a reserved keyword in the implementation.
 
 Security Implications
 =====================
@@ -332,7 +349,7 @@ Non-shape based GROUP BY
 ------------------------
 
 The initial recent proposal, heavily inspired by the original deleted
-EdgeQL ``GROUP BY`` [1]_, was::
+EdgeQL ``GROUP BY`` [1]_, was (approximately)::
 
   GROUP
       [<alias> := ] <expr>
@@ -352,10 +369,10 @@ EdgeQL ``GROUP BY`` [1]_, was::
                               # merging them all with a UNION ALL
                               # (or UNION for Objects)
 
-The meaning of the first three clauses is essentially identical to
-above (except that aliases may not be omitted), but with a totally
-different scheme for output.
-
+In this proposal, the ``BY`` clause acts like the ``USING`` clause
+above, and ``USING`` acts like ``BY``, except only can refer to
+aliases, and can be omitted, in which case it is considered to group
+by every alias.
 
 Instead of producing a free object automatically, the output is
 produced by an explicit `UNION` clause. Within the `UNION` clause,
@@ -366,7 +383,8 @@ elements in the group.
 simple set name reference, in which case that name is also used as the
 alias.)
 
-This is a solid and reasonable design.
+This is a solid and reasonable design, though I'm sure we could argue
+about the syntax for a while.
 
 One key difference with the main proposal is that is essentially
 orthogonal to other language features. This would make it well suited
