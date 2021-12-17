@@ -142,8 +142,8 @@ considers all elements of the power set, so that
 ``CUBE (a, b)`` is equivalent to ``{(), (a), (b), (a, b)}``.
 These elements can be lists of aliases, also.
 
-If a grouping set occurs multiple times, the group still appears in
-the output just once.
+If a grouping set occurs multiple times, the group appears in the output
+once for each time it was specified.
 
 This all basically exactly follows SQL, except that we write braces
 instead of ``GROUPING SETS``.
