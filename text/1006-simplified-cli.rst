@@ -98,7 +98,8 @@ the EdgeDB RC1 release::
     project unlink             Clean-up the project configuration
 
     instance create            Initialize a new server instance
-    instance status            Show statuses of all or of a matching instance
+    instance list              Show all instances
+    instance status            Show status of a matching instance
     instance start             Start an instance
     instance stop              Stop an instance
     instance restart           Restart an instance
@@ -325,7 +326,7 @@ Changes in the CLI:
 ``edgedb server list-versions``   Keep as is
 ``edgedb server upgrade``         Rename to ``edgedb instance upgrade``
 ``edgedb server init``            Rename to ``edgedb instance create``
-``edgedb server status``          Rename to ``edgedb instance status``
+``edgedb server status``          Rename and split into ``edgedb instance status`` for a single instance, and ``edgedb instance list`` for all instances
 ``edgedb server start``           Rename to ``edgedb instance start``
 ``edgedb server stop``            Rename to ``edgedb instance stop``
 ``edgedb server restart``         Rename to ``edgedb instance restart``
