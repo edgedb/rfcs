@@ -9,6 +9,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 ### Current Drafts
 * [RFC 1008 - TLS and ALPN Support](./text/1008-tls-and-alpn.rst)
 * [RFC 1009 - GROUP](./text/1009-group.rst)
+* [RFC 1010 - Global variables](./text/1010-global-vars.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
