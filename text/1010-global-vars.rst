@@ -37,6 +37,8 @@ CREATE GLOBAL
 
 Define a new global variable.
 
+Required capabilities: DDL.
+
 Synopsis::
 
     [ WITH <with-item> [, ...] ]
@@ -71,7 +73,16 @@ is possible to define an object type global in terms of its ``id``, e.g::
     CREATE GLOBAL user := (SELECT User FILTER .id = (GLOBAL user_id));
 
 If a global is declared as ``REQUIRED``, it *must* provide a default value, or,
-if the global is computed, the expression must be non-optional.
+if the global is computed, the expression must be non-optional.  For example::
+
+    CREATE SCALAR TYPE Context EXTENDING enum<System, User>;
+    CREATE REQUIRED GLOBAL context -> Context {
+        SET default := Context.System;
+    }
+
+    # or
+
+    CREATE REQUIRED GLOBAL user := assert_exists(SELECT User ...)
 
 Explicit cardinality is specified via the ``SINGLE`` or ``MULTI`` keyword,
 otherwise the cardinality is assumed to be ``SINGLE`` in non-computed globals,
@@ -82,6 +93,8 @@ ALTER GLOBAL
 ------------
 
 Alter the definition of a global variable.
+
+Required capabilities: DDL.
 
 Synopsis::
 
@@ -110,6 +123,8 @@ DROP GLOBAL
 
 Remove a global variable.
 
+Required capabilities: DDL.
+
 Synopsis::
 
     [ WITH <with-item> [, ...] ]
@@ -122,6 +137,8 @@ SET GLOBAL
 Set the value of a non-computed global variable *in the current session*
 by evaluating the given expression.
 
+Required capabilities: session config.
+
 Synopsis::
 
     SET GLOBAL <name> := <expr> ;
@@ -131,6 +148,8 @@ RESET GLOBAL
 ------------
 
 Reset a non-computed global variable to its default value.
+
+Required capabilities: session config.
 
 Synopsis::
 
@@ -143,16 +162,53 @@ Referring to globals in queries
 The new ``GLOBAL <name>`` expression is used to refer to the value of the
 given global variable in queries.  For example::
 
-    SELECT User FILTER .id = (GLOBAL user_id)
+    SELECT User FILTER .id = GLOBAL user_id
+
+The precedence of ``GLOBAL`` is similar to ``DETACHED`` and binds higher
+than most other operators, including the dot.
+
+References to globals are legal in regular EdgeQL queries (i.e. non-DDL) and
+in parts of schema definition that interpolate into EdgeQL queries:
+
+- defaults
+- expressions in computed properties and links
+- expression aliases
 
 
-Implementation
---------------
+Introspection
+=============
 
-Non-computed global variables are implemented as implicit query arguments,
-i.e global variable references are replaced with a query argument the value
-of which is automatically populated from the session state.  Computed globals
-are expanded like expression aliases.
+Globals can be introspected via a new entry in the introspection schema:
+``schema::Global``.  Likewise a ``DESCRIBE GLOBAL <foo>`` statement returns
+a textual DDL or SDL description of a global.
+
+
+Performance and scalability considerations
+==========================================
+
+For scalability and HA reasons, the server must not maintain persistent session
+state, including the values of globals.  This means that it is the
+responsibility of the _client_ to maintain this state and send it to the server
+with every query or script request in a context header.  See
+`Protocol changes`_ below.
+
+Internally, references to non-computed globals are compiled as query arguments
+and are query cache friendly.
+
+
+Protocol changes
+================
+
+Regarding the protocol, there are two things to consider: client informing the
+server about the session state, and the server informing the client about
+the session state changes as a result of a ``SET/RESET GLOBAL`` statement.
+
+When sending a query or a script, a client _may_ specify the values of globals
+in the new "globals" header, encoded as a free object.
+
+When the server encounters a ``SET/RESET GLOBAL`` statement in a query or
+script message it *must* include the new values of the affected globals in
+the new "globals" header returned with the next ``CommandComplete`` response.
 
 
 Computed globals vs aliases
@@ -166,14 +222,16 @@ the alias cardinality is usually ``multi``, whereas most globals would normally
 be ``single``.
 
 
-Backwards Compatibility
+Backwards compatibility
 =======================
 
-``global`` is already a reserved keyword.  There are no other compatibility
-concerns as globals are a new construct.
+``global`` is already a reserved keyword, no other new keywords are proposed
+in this RFC.
+
+Protocol changes require a protocol version bump.
 
 
-Security Implications
+Security implications
 =====================
 
 There are no security implications.
