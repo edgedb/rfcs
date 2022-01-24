@@ -481,6 +481,34 @@ shape-like syntax and because it prevents grouping on scalar types
 without wrapping them in a free object.
 
 
+Other formats for grouping
+--------------------------
+
+Initial versions of this proposal had the ``grouping`` field as an
+array instead of a set.
+
+The advantage of approach is that it is easy to compare arrays for
+equality, to order by arrays, and group by an array.
+
+The disadvantage is that we are a set-based language, and it is
+somewhat incongrous to directly produce an array
+instead. Additionally, an array needs to have some sort of fixed
+ordering, which users would need to occasionally reason about
+(probably ordered by first appearance in the ``BY`` clause).
+
+To support this decision, we need to add a set equality
+operator (for comparing against ``grouping``) and an easy way
+to sort (for producing something we can group or order by
+in a less cumbersome way than
+``array_agg((SELECT _ := .grouping ORDER BY _))``.
+
+Another released option would be to have it be a set, but to specify
+an order for the set, so that it could be used in an ``array_agg``
+without needing to sort it explicitly. This was felt to be a departure
+from our normal semantics, so we aren't specifying that. (The
+implementation does still work that way, though.)
+
+
 .. [1] https://github.com/edgedb/edgedb/issues/104#issuecomment-344307260
 
 .. [2] https://github.com/edgedb/edgedb/tree/group-proposal
