@@ -88,9 +88,9 @@ with matching grouping keys.
 The output is reflected in an ad-hoc free object of the following form::
 
   {
-      key: <another free object containing "alias := value" pointers>,
-      elements: <the set of all the objects with the matching key>,
-      grouping: <array of keys used in grouping>,
+    key: <another free object containing "alias := value" pointers>,
+    elements: <the set of all the objects with the matching key>,
+    grouping: <set of keys used in grouping>,
   }
 
 
@@ -126,7 +126,7 @@ The ``grouping`` element of the output shape indicates
 which grouping set a group is from, by listing all the keys used in
 the group, in the order they appeared in the ``BY`` clause.
 
-When there are multiple top-level ``grouping-element``s, and some are
+When there are multiple top-level ``grouping-elements``, and some are
 grouping sets, then the cartesian product of them is taken to determine
 the final grouping sets. That is ``a, {b, c}`` is equivalent
 to ``{(a, b), (a, c)}``. The best way to think about this is as analogue
@@ -167,38 +167,41 @@ Doing a very basic GROUP BY without any aggregation of the data::
 
 This produces::
 
-  [
-      {
-          key: {element: 'Fire'},
-          elements: [{name: 'Imp', cost: 1}, {name: 'Dragon', cost: 5}],
-          grouping: ['element']
+  {
+    {
+      key: {element: 'Air'},
+      grouping: {'element'},
+      elements: {
+	default::Card {name: 'Sprite'},
+	default::SpecialCard {name: 'Djinn'},
+	default::Card {name: 'Giant eagle'},
       },
-      {
-          key: {element: 'Water'},
-          elements: [
-              {name: 'Bog monster', cost: 2},
-              {name: 'Giant turtle', cost: 3}
-          ],
-          grouping: ['element']
+    },
+    {
+      key: {element: 'Earth'},
+      grouping: {'element'},
+      elements: {
+	default::Card {name: 'Dwarf'},
+	default::Card {name: 'Golem'},
       },
-      {
-          key: {element: 'Earth'},
-          elements: [
-              {name: 'Dwarf', cost: 1},
-              {name: 'Golem', cost: 3}
-          ],
-          grouping: ['element']
+    },
+    {
+      key: {element: 'Fire'},
+      grouping: {'element'},
+      elements: {
+	default::Card {name: 'Dragon'},
+	default::Card {name: 'Imp'},
       },
-      {
-          key: {element: 'Air'},
-          elements: [
-              {name: 'Sprite', cost: 1},
-              {name: 'Giant eagle', cost: 2},
-              {name: 'Djinn', cost: 4}
-          ],
-          grouping: ['element']
-      }
-  ]
+    },
+    {
+      key: {element: 'Water'},
+      grouping: {'element'},
+      elements: {
+	default::Card {name: 'Giant turtle'},
+	default::Card {name: 'Bog monster'},
+      },
+    },
+  }
 
 
 Computing the average cost of each "element" that a card can have::
@@ -210,12 +213,12 @@ Computing the average cost of each "element" that a card can have::
 
 ::
 
-   [
-       {el: 'Air', avg_cost: 2.3333333333333335},
-       {el: 'Earth', avg_cost: 2.0},
-       {el: 'Fire', avg_cost: 3.0},
-       {el: 'Water', avg_cost: 2.5}
-   ]
+  {
+    {element: 'Air', avg_cost: 2.3333333333333335},
+    {element: 'Earth', avg_cost: 2.0},
+    {element: 'Fire', avg_cost: 3.0},
+    {element: 'Water', avg_cost: 2.5},
+  }
 
 Computing the ratio of each card's cost to the average of its element::
 
@@ -230,17 +233,17 @@ Computing the ratio of each card's cost to the average of its element::
 
 ::
 
-  [
-      {name: 'Imp', cost_ratio: 0.3333333333333333},
-      {name: 'Dragon', cost_ratio: 1.6666666666666667},
-      {name: 'Bog monster', cost_ratio: 0.8},
-      {name: 'Giant turtle', cost_ratio: 1.2},
-      {name: 'Dwarf', cost_ratio: 0.5},
-      {name: 'Golem', cost_ratio: 1.5},
-      {name: 'Sprite', cost_ratio: 0.42857142857142855},
-      {name: 'Giant eagle', cost_ratio: 0.8571428571428571},
-      {name: 'Djinn', cost_ratio: 1.7142857142857142}
-  ]
+  {
+    default::Card {name: 'Bog monster', cost_ratio: 0.8},
+    default::SpecialCard {name: 'Djinn', cost_ratio: 1.7142857142857142},
+    default::Card {name: 'Dragon', cost_ratio: 1.6666666666666667},
+    default::Card {name: 'Dwarf', cost_ratio: 0.5},
+    default::Card {name: 'Giant eagle', cost_ratio: 0.8571428571428571},
+    default::Card {name: 'Giant turtle', cost_ratio: 1.2},
+    default::Card {name: 'Golem', cost_ratio: 1.5},
+    default::Card {name: 'Imp', cost_ratio: 0.3333333333333333},
+    default::Card {name: 'Sprite', cost_ratio: 0.42857142857142855},
+  }
 
 Counting the number of cards in each possible "element", "number of
 owners" combination bucket, as well as those things individually::
@@ -253,27 +256,53 @@ owners" combination bucket, as well as those things individually::
       key: {element, nowners},
       num := count(.elements),
       grouping
-  } ORDER BY .grouping THEN .key.element THEN .key.nowners;
+  }
+  ORDER BY array_agg((SELECT _ := .grouping ORDER BY _))
+  THEN .key.element THEN .key.nowners;
 
 ::
 
-   [
-       {key: {element: [], nowners: []}, num: 9, grouping: []},
-       {key: {element: 'Air', nowners: []}, num: 3, grouping: ['element']},
-       {key: {element: 'Earth', nowners: []}, num: 2, grouping: ['element']},
-       {key: {element: 'Fire', nowners: []}, num: 2, grouping: ['element']},
-       {key: {element: 'Water', nowners: []}, num: 2, grouping: ['element']},
-       {key: {element: [], nowners: 1}, num: 1, grouping: ['nowners']},
-       {key: {element: [], nowners: 2}, num: 5, grouping: ['nowners']},
-       {key: {element: [], nowners: 3}, num: 1, grouping: ['nowners']},
-       {key: {element: [], nowners: 4}, num: 2, grouping: ['nowners']},
-       {key: {element: 'Air', nowners: 2}, num: 3, grouping: ['nowners', 'element']},
-       {key: {element: 'Earth', nowners: 2}, num: 1, grouping: ['nowners', 'element']},
-       {key: {element: 'Earth', nowners: 3}, num: 1, grouping: ['nowners', 'element']},
-       {key: {element: 'Fire', nowners: 1}, num: 1, grouping: ['nowners', 'element']},
-       {key: {element: 'Fire', nowners: 2}, num: 1, grouping: ['nowners', 'element']},
-       {key: {element: 'Water', nowners: 4}, num: 2, grouping: ['nowners', 'element']}
-   ]
+  {
+    {key: {element: {}, nowners: {}}, num: 9, grouping: {}},
+    {key: {element: 'Air', nowners: {}}, num: 3, grouping: {'element'}},
+    {key: {element: 'Earth', nowners: {}}, num: 2, grouping: {'element'}},
+    {key: {element: 'Fire', nowners: {}}, num: 2, grouping: {'element'}},
+    {key: {element: 'Water', nowners: {}}, num: 2, grouping: {'element'}},
+    {
+      key: {element: 'Air', nowners: 2},
+      num: 3,
+      grouping: {'element', 'nowners'},
+    },
+    {
+      key: {element: 'Earth', nowners: 2},
+      num: 1,
+      grouping: {'element', 'nowners'},
+    },
+    {
+      key: {element: 'Earth', nowners: 3},
+      num: 1,
+      grouping: {'element', 'nowners'},
+    },
+    {
+      key: {element: 'Fire', nowners: 1},
+      num: 1,
+      grouping: {'element', 'nowners'},
+    },
+    {
+      key: {element: 'Fire', nowners: 2},
+      num: 1,
+      grouping: {'element', 'nowners'},
+    },
+    {
+      key: {element: 'Water', nowners: 4},
+      num: 2,
+      grouping: {'element', 'nowners'},
+    },
+    {key: {element: {}, nowners: 1}, num: 1, grouping: {'nowners'}},
+    {key: {element: {}, nowners: 2}, num: 5, grouping: {'nowners'}},
+    {key: {element: {}, nowners: 3}, num: 1, grouping: {'nowners'}},
+    {key: {element: {}, nowners: 4}, num: 2, grouping: {'nowners'}},
+  }
 
 Comparison with SQL
 ===================
@@ -375,8 +404,8 @@ aliases, and can be omitted, in which case it is considered to group
 by every alias.
 
 Instead of producing a free object automatically, the output is
-produced by an explicit `UNION` clause. Within the `UNION` clause,
-the aliases from the `BY` clause are bound to the grouping columns
+produced by an explicit ``UNION`` clause. Within the ``UNION`` clause,
+the aliases from the ``BY`` clause are bound to the grouping columns
 and the subject alias is bound to the *set* containing all the
 elements in the group.
 (The subject alias may be omitted if the subject expression is a
@@ -397,8 +426,8 @@ That said, this is also its disadvantage: the shape-based version fits
 in nicer with the language and better leverages the other features it
 has.
 
-If the shape-based version winds up as unimplementable, though, we
-should strongly consider coming back to this one.
+The implementation of GROUP actually operates by implementing this
+version and then desugaring the shape-based version into it.
 
 (One other annoying issue with this approach is because of the
 presence of UNION in the expression grammar, either we need to use a
@@ -414,7 +443,7 @@ One proposal considered was to produce output in a *doubly* nested
 form, with the outer grouping done by grouping set, like so::
 
   {
-      grouping: <array of keys used in grouping>,
+      grouping: <set of keys used in grouping>,
       group: {
           key: <another free object containing "alias := value" pointers>,
           elements: <the set of all the objects with the matching key>,
