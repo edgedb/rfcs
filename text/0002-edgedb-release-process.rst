@@ -54,7 +54,7 @@ All of the binding tests need to be performed for each of our
 supported bindings.
 
 1. Using an old version (stable release) of CLI and server, either
-   initialize a new project or restore and existing one.
+   initialize a new project or restore an existing one.
 
 2. Update the bindings to the nightly version.
 
@@ -172,7 +172,10 @@ External places to bump binaries at
 2. Update Docker Hub. This should happen automatically during the server
    GitHub Action release build (debian-buster).
 
-3. Update the Homebrew tap.
+3. Update the DigitalOcean image. Instructions can be found in
+   edgedb-deploy/digitalocean-1-click/README.md.
+
+4. Update the Homebrew tap.
 
 The tap is auto-updating nightly. If you need to bump it faster,
 use the HTTP repository dispatch documented in the README of the
