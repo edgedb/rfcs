@@ -8,7 +8,6 @@ To read more on when and how to submit an RFC document, see RFC 1.
 
 ### Current Drafts
 * [RFC 1008 - TLS and ALPN Support](./text/1008-tls-and-alpn.rst)
-* [RFC 1009 - GROUP](./text/1009-group.rst)
 * [RFC 1010 - Global variables](./text/1010-global-vars.rst)
 
 ### Accepted
@@ -20,6 +19,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 * [RFC 1004 - Robust Client API](./text/1004-transactions-api.rst) (accepted)
 * [RFC 1005 - CLI and conventions for local projects using EdgeDB](./text/1005-edgedb-project.rst) (accepted)
 * [RFC 1006 - Simplified CLI Design](./text/1006-simplified-cli.rst) (accepted)
+* [RFC 1009 - GROUP](./text/1009-group.rst) (final)
 
 ## License
 
