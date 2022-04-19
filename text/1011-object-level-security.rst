@@ -54,47 +54,53 @@ Synopsis::
     {CREATE|ALTER} OBJECT TYPE <type-name> "{"
         CREATE ACCESS POLICY <name>
             [ WHEN <condition> ]
-            { PERMIT | RESTRICT }
+            { ALLOW | DENY }
             { ALL | READ | WRITE | DELETE } [ ... ]
-            USING (<expr>)
+            [ USING (<expr>) ]
     "}"
 
-An access policy grants the permission to select, insert or delete objects
-that match the relevant policy expression.  The ``READ`` and ``DELETE``
-policies specify a *visibility* check for existing objects: when ``<expr>>``
-returns a false result for an object, such object will be silently skipped
-in any ``SELECT``, ``UPDATE`` or ``DELETE`` expression that scans it.
+If at least one access rule is defined for a type, then all elements become
+invisible/immutable by default and must be made visible/mutable by at least
+one ``ALLOW`` rule.
+
+An ``ALLOW`` rule *adds* all objects, for which the check expression ``<expr>``
+evaluates to true, to the set of visible objects.  ``ALLOW`` rules are
+combined using the ``OR`` operator, i.e. they are mutually additive.
+
+A ``DENY`` rule removes objects for which the check expression ``<expr>``
+evaluates to true from the set of visible objects.  ``DENY`` rules are combined
+using the ``AND`` operator.
+
+Per ``READ`` and ``DELETE`` policies objects that are outside of the visible
+set are silently skipped in any ``SELECT``, ``UPDATE`` or ``DELETE`` expression
+that scans the relevant type.
+
 A ``WRITE`` policy specifies a *validity* check for new or updated objects and
-affects ``INSERT`` and ``UPDATE`` expressions: if the proposed object violates
-``<expr>``, an error is raised immediately and the query is aborted.
+affects ``INSERT`` and ``UPDATE`` expressions: if the proposed object is
+outside of the visible set, an error is raised immediately and the query is
+aborted.
 
 The optional ``<condition>`` expression is evaluated for every object
 affected by the statement and the policy is applied only if the expression
 evaluates to *true*.  It is essentially equivalent to joining ``<condition>``
 with ``<expr>`` with an ``AND`` operator.  The reason for a standalone clause
-is that it makes it easier to separate *when* a policy is applied from
-*how* a policy is applied.  Also, other access policies do not apply to
-``when`` expressions, but they *do* apply to ``using`` expressions.
+is that it makes it easier to separate *when* a policy is applied from *how* a
+policy is applied.  Also, other access policies do not apply to ``when``
+expressions, but they *do* apply to ``using`` expressions.
 
-If at least one access rule is defined for a type, then all elements become
-invisible/immutable by default and must be made visible/mutable by at least
-one ``PERMIT`` rule.
-
-A ``PERMIT`` rule *adds* all objects, for which the check expression
-evaluates to true, to the set of visible objects.  ``PERMIT`` rules are
-combined using the ``OR`` operator.
-
-A ``RESTRICT`` rule restricts the set of visible objects to only objects for
-which the check expression evaluates to true.  ``RESTRICT`` rules are combined
-using the ``AND`` operator and are applied *after* all ``PERMIT`` policies.
+The check expression ``<expr>`` may be omitted, which implies that the policy
+matches all objects, e.g. this is equivalent to specifying ``using (true)``.
 
 Example read policy::
 
     type Movie {
       property rating -> str;
+      # Allow all movie objects to be read by default
+      access policy default permit read;
+      # But deny those that are rated 'R' to users aged under 17.
       access policy age_appropriate
         when ((global current_user).age < 17)
-        permit read using (.rating != 'R');
+        deny read using (.rating = 'R');
     }
 
 Example read/write policy::
@@ -106,23 +112,23 @@ Example read/write policy::
       # ensure that a user cannot set the `author` link
       # to anything but themselves.
       access policy author_only
-        permit all using (.author = global current_user);
+        allow all using (.author = global current_user);
     }
 
-A combination of permit/restrict policies::
+Another example of combination of allow/deny policies::
 
     abstract type Owned {
       link owner -> User;
 
       # permit read access to owner
       access policy owner_only
-        permit all using (.owner = global current_user);
+        allow all using (.owner = global current_user);
     }
 
     abstract type Shared extending Owned {
-      # permit read access to friends
+      # allow read access to friends
       access policy friends_can_read
-        permit read using (global current_user in .owner.friends);
+        allow read using (global current_user in .owner.friends);
     }
 
     # Post inherits policies from Shared
@@ -135,7 +141,7 @@ A combination of permit/restrict policies::
       # regardless of what permissions were granted in parent types
       access policy private_owner_only
         when (.private)
-        restrict all using (.owner = global current_user);
+        deny all using (.owner != global current_user);
     }
 
 
@@ -152,7 +158,7 @@ Synopsis::
     ALTER OBJECT TYPE <type-name> "{"
         ALTER ACCESS POLICY <name>
             [ WHEN <condition> ]
-            { PERMIT | RESTRICT }
+            { ALLOW | DENY }
             { ALL | READ | WRITE | DELETE } [ ... ]
             USING (<expr>)
         [ "{" <subcommand>; [...] "}" ];
@@ -195,7 +201,7 @@ Example::
       required link owner -> User;
 
       access policy owner_only
-        permit all (.owner.id = global user_id)
+        allow all (.owner.id = global user_id)
     }
 
     object type Purchase extending Owned;
@@ -246,7 +252,7 @@ Implementation considerations
 
 Access policies primarily affect what IR is generated for a given EdgeQL query.
 ``READ`` and ``DELETE`` rules wrap set references and transform every ``Foo``
-reference into ``(SELECT Foo FILTER <permit-restrict-filter>)``.
+reference into ``(SELECT Foo FILTER <allow-deny-filter>)``.
 
 ``WRITE`` actions insert an intermediate shape into ``INSERT`` and ``UPDATE``,
 e.g.::
@@ -263,7 +269,7 @@ is roughly transformed into::
     INSERT Foo { prop := checked.prop }
 
 If specified, the ``WHEN`` conditions must be taken into account, e.g by
-combining directly with the ``PERMIT/RESTRICT`` filters and check expressions.
+combining directly with the ``ALLOW/DENY`` filters and check expressions.
 
 
 Rejected Alternative Ideas
