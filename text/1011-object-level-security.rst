@@ -55,7 +55,7 @@ Synopsis::
         CREATE ACCESS POLICY <name>
             [ WHEN <condition> ]
             { ALLOW | DENY }
-            { ALL | READ | WRITE | DELETE } [ ... ]
+            { ALL | UPDATE | SELECT | UPDATE READ | UPDATE WRITE | INSERT | DELETE } [ , ... ]
             [ USING (<expr>) ]
     "}"
 
@@ -71,22 +71,30 @@ A ``DENY`` rule removes objects for which the check expression ``<expr>``
 evaluates to true from the set of visible objects.  ``DENY`` rules are combined
 using the ``AND`` operator.
 
-Per ``READ`` and ``DELETE`` policies objects that are outside of the visible
-set are silently skipped in any ``SELECT``, ``UPDATE`` or ``DELETE`` expression
-that scans the relevant type.
+An ``UPDATE`` policy kind is an abbreviation for ``UPDATE READ, UPDATE WRITE``
+while an ``ALL`` policy is an abbreviation for all five policy kinds.
 
-A ``WRITE`` policy specifies a *validity* check for new or updated objects and
-affects ``INSERT`` and ``UPDATE`` expressions: if the proposed object is
-outside of the visible set, an error is raised immediately and the query is
-aborted.
+Per ``SELECT``, ``UPDATE READ``, and ``DELETE`` policies, objects that
+are outside of the visible set are silently skipped in any ``SELECT``,
+``UPDATE`` or ``DELETE`` expression that scans the relevant type.
+Note that every ``DELETE`` and ``UPDATE`` does an implicit ``SELECT``
+to produce the set to be modified, and so ``SELECT`` policies restrict
+the objects that can be modified by DML as well.
+
+A ``UPDATE WRITE`` and ``INSERT`` policies specify a *validity* check
+for new or updated objects and affects ``INSERT`` and ``UPDATE``
+expressions, respectively: if the proposed object is outside of the
+visible set, an error is raised immediately and the query is aborted.
 
 The optional ``<condition>`` expression is evaluated for every object
 affected by the statement and the policy is applied only if the expression
 evaluates to *true*.  It is essentially equivalent to joining ``<condition>``
 with ``<expr>`` with an ``AND`` operator.  The reason for a standalone clause
 is that it makes it easier to separate *when* a policy is applied from *how* a
-policy is applied.  Also, other access policies do not apply to ``when``
-expressions, but they *do* apply to ``using`` expressions.
+policy is applied.
+
+Access policies on other types apply to both ``when`` and ``using``
+expressions, to prevent information leaks through that channel.
 
 The check expression ``<expr>`` may be omitted, which implies that the policy
 matches all objects, e.g. this is equivalent to specifying ``using (true)``.
@@ -128,7 +136,7 @@ Another example of combination of allow/deny policies::
     abstract type Shared extending Owned {
       # allow read access to friends
       access policy friends_can_read
-        allow read using (global current_user in .owner.friends);
+        allow select using (global current_user in .owner.friends);
     }
 
     # Post inherits policies from Shared
@@ -239,8 +247,9 @@ Policies can be introspected via a new ``schema::AccessPolicy`` in the
 introspection schema that is linked from ``schema::ObjectType`` via the new
 ``access_policies`` link.  The ``schema::AccessPolicy`` is exposed as follows::
 
-    type schema::AccessPolicy extending schema::AnnotationSubject {
-      multi property access_kind -> schema::AccessKind;
+    type schema::AccessPolicy
+	    extending schema::InheritingObject, schema::AnnotationSubject {
+      multi property access_kinds -> schema::AccessKind;
       property condition -> std::str;
       required property action -> schema::AccessPolicyAction;
       required property expr -> std::str;
