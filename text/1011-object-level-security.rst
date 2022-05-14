@@ -165,10 +165,6 @@ Synopsis::
 
     ALTER OBJECT TYPE <type-name> "{"
         ALTER ACCESS POLICY <name>
-            [ WHEN <condition> ]
-            { ALLOW | DENY }
-            { ALL | READ | WRITE | DELETE } [ ... ]
-            USING (<expr>)
         [ "{" <subcommand>; [...] "}" ];
     "}"
 
@@ -177,6 +173,10 @@ Synopsis::
       CREATE ANNOTATION <annotation-name> := <value>
       ALTER ANNOTATION <annotation-name> := <value>
       DROP ANNOTATION <annotation-name>
+      WHEN (<condition>)
+      RESET WHEN
+      USING (<expr>)
+      { ALLOW | DENY } { ALL | UPDATE | SELECT | UPDATE READ | UPDATE WRITE | INSERT | DELETE } [ , ... ]
 
 
 DROP ACCESS POLICY
