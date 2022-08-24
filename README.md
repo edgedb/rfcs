@@ -7,6 +7,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 [//]: # "NOTE: This section is auto-generated with update_index.py"
 
 ### Current Drafts
+* [RFC 1007 - Protocol v1](./text/1007-protocol-v1.rst)
 * [RFC 1008 - TLS and ALPN Support](./text/1008-tls-and-alpn.rst)
 * [RFC 1010 - Global variables](./text/1010-global-vars.rst)
 * [RFC 1011 - Object-Level Security](./text/1011-object-level-security.rst)
