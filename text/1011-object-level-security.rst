@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Accepted
     Type: Feature
     Created: 2022-04-18
     Authors: Elvis Pranskevichus <elvis@edgedb.com>

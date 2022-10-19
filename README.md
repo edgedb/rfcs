@@ -7,12 +7,8 @@ To read more on when and how to submit an RFC document, see RFC 1.
 [//]: # "NOTE: This section is auto-generated with update_index.py"
 
 ### Current Drafts
-* [RFC 1007 - Protocol v1](./text/1007-protocol-v1.rst)
-* [RFC 1008 - TLS and ALPN Support](./text/1008-tls-and-alpn.rst)
-* [RFC 1010 - Global variables](./text/1010-global-vars.rst)
-* [RFC 1011 - Object-Level Security](./text/1011-object-level-security.rst)
-* [RFC 1012 - Range types](./text/1012-range-types.rst)
-* [RFC 1013 - Date/time arithmetic](./text/1013-datetime-arithmetic.rst)
+* [RFC 1015 - Full text search](./text/1015-full-text-search.rst)
+* [RFC 1016 - Enabling and disabling extensions](./text/1016-extension-control.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
@@ -23,7 +19,13 @@ To read more on when and how to submit an RFC document, see RFC 1.
 * [RFC 1004 - Robust Client API](./text/1004-transactions-api.rst) (accepted)
 * [RFC 1005 - CLI and conventions for local projects using EdgeDB](./text/1005-edgedb-project.rst) (accepted)
 * [RFC 1006 - Simplified CLI Design](./text/1006-simplified-cli.rst) (accepted)
+* [RFC 1007 - Protocol v1](./text/1007-protocol-v1.rst) (accepted)
+* [RFC 1008 - TLS and ALPN Support](./text/1008-tls-and-alpn.rst) (accepted)
 * [RFC 1009 - GROUP](./text/1009-group.rst) (final)
+* [RFC 1010 - Global variables](./text/1010-global-vars.rst) (accepted)
+* [RFC 1011 - Object-Level Security](./text/1011-object-level-security.rst) (accepted)
+* [RFC 1012 - Range types](./text/1012-range-types.rst) (accepted)
+* [RFC 1013 - Date/time arithmetic](./text/1013-datetime-arithmetic.rst) (accepted)
 
 ## License
 
