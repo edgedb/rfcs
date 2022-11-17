@@ -100,31 +100,46 @@ Publishing the binaries
 CLI
 ---
 
-1. Create a release branch:
+1. Create a release branch if not exists (assuming you release 2.2.0):
 
-   - ``git switch -c releases/1.0a6``
+   - ``git switch -c stable/2.2.x``
 
-   - update version in ``Cargo.toml`` and run ``cargo check``
+   - update version if needed in ``Cargo.toml`` and run ``cargo check``
 
-   - commit (ideally with a name like "edgedb-cli 1.0a6"
+   - commit (ideally with a name like "edgedb-cli 2.2.0")
 
 2. Tag the commit:
 
-   - ``git tag -s v1.0a6``
+   - ``git tag -s v2.2.0``
 
-   - the message can be something like::
+   - for major releases the message can be something like::
 
-        v1.0a6 "Wolf 359"
+        v2.0.0 "Sagittarius"
 
         See changelog at
-        https://github.com/edgedb/edgedb/blob/master/docs/changelog/1_0_a6.rst
+        https://github.com/edgedb/edgedb/blob/master/docs/changelog/2_x.rst
 
-   - ``git push --follow-tags``
+     for a minor/bugfix release no description is usually necessary
+
+   - ``git push -u origin stable/2.2.x v2.2.0``
 
 3. Start the release flow by going to:
 
    - https://github.com/edgedb/edgedb-cli/actions/workflows/release.yml?query=workflow%3A%22Build%2C+Test%2C+and+Publish+a+Release%22
    - select the newly pushed release branch from the dropdown and press "Run Workflow"
+
+4. Update version in ``master`` branch to the next minor version:
+
+   - ``git switch -c bump23``
+
+   - update ``Cargo.toml`` and run ``cargo check``
+
+   - commit (ideally with a name like "Bump main to 2.3.0-dev")
+
+   - ``git push -u origin bump23``
+
+   - Create a PR from the newly created branch
+
 
 Server
 ------
