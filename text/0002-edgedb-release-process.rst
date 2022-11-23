@@ -121,12 +121,12 @@ CLI
 
      for a minor/bugfix release no description is usually necessary
 
-   - ``git push -u origin stable/2.2.x v2.2.0``
+   - ``git push --atomic -u origin stable/2.2.x v2.2.0``
 
 3. Start the release flow by going to:
 
    - https://github.com/edgedb/edgedb-cli/actions/workflows/release.yml?query=workflow%3A%22Build%2C+Test%2C+and+Publish+a+Release%22
-   - select the newly pushed release branch from the dropdown and press "Run Workflow"
+   - select the newly pushed tag from the dropdown and press "Run Workflow"
 
 4. Update version in ``master`` branch to the next minor version:
 
