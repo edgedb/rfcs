@@ -16,8 +16,8 @@ Some text stolen from an earlier RFC by Elvis.
 Motivation
 ==========
 
-Requirements
-============
+Triggers are useful for things such as generating audit logs,
+maintaining change metadata (mtime) and generating external events.
 
 Specification
 =============
@@ -26,54 +26,64 @@ Synopsis::
 
     type <type-name> "{"
         trigger <name>
-            on { insert | update | delete } [, ... ]
-            <action>
+	    {before | after | after commit of}
+            { insert | update | delete } [, ... ]
+	    for { each | all }
+	    do <expr>
+
     "}"
 
-    # where <action> can be one of:
-
-    DO WHEN <element-expr>
-
-    DO AFTER <set-expr>
-
-    DO ON COMMIT <set-expr>
-
-(N.B: ``DO ON COMMIT`` will probably not be implemented in the first
+(N.B: ``AFTER COMMIT OF`` will probably not be implemented in the first
 pass.)
 
-For ``DO WHEN`` triggers, the ``<element-expr>`` is evaluated for
-*each* of the modified objects. ``__result__`` is bound to the object
-being considered. For ``update`` triggers, ``__old__`` is bound to the
-*previous* value of the object. The state of the database is otherwise
-that from *before* the query.
+``BEFORE`` triggers are run *before* the modifications have taken
+effect. For ``insert`` and ``update``, the variable ``__new__`` refers
+to the new value of the modified object, and for ``update`` and
+``delete``, the variable ``__old__`` refers to the old value.
+``BEFORE`` triggers may not make further modifications to the objects.
+The state of the database is otherwise that from *before* the query.
 
-For ``DO AFTER`` triggers, the ``<set-expr>`` is evaluated for the
-entire set of objects affected by the statement, bound in
-``__result__``. The state of the database is that from *after* the query.
+``AFTER`` triggers are run *after* the modifications have taken effect.
+For ``insert`` and ``update``, the variable ``__new__`` refers
+to the new value of the modified object. ``AFTER`` triggers may not be
+used for ``delete``. ``AFTER`` triggers *may* make further
+modifications to the objects (though be careful: an object may not be
+modified twice by two different triggers.)
+The state of the database is that from *after* the query.
 
-A failure in either a ``DO WHEN`` or ``DO AFTER`` trigger causes the
+``AFTER COMMIT OF`` triggers will run "shortly" after the containing
+transaction is committed. It has ``__new__`` variables, like ``AFTER``
+triggers. The state of the database is indeterminate, since an
+potentially many queries may have executed after the triggering
+even. (This means that the ``__new__`` objects may no longer exist!)
+
+If ``FOR EACH`` is specified the ``<expr>`` is evaluated for
+*each* of the modified objects and the variables ``_old__`` and
+``__new__`` refer to individual objects. If ``FOR ALL`` is specified,
+then the trigger is run once per query where more than one applicable
+object was modified, and ``__old__`` and ``__new__`` refer to the
+entire set of old and new modified objects.
+
+A failure in either a ``BEFORE`` or ``AFTER`` trigger causes the
 query to fail.
-
-``delete`` triggers cannot be ``DO AFTER``, since the object is
-already too gone to do anything useful with it.
 
 DML performed in a trigger expression will activate triggers that
 operate in a *later* phrase, but not those in the same phase. That is,
-DML in a ``DO WHEN`` trigger may cause ``DO AFTER`` triggers to fire.
+DML in a ``BEFORE`` trigger may cause ``AFTER`` triggers to fire.
 (This isn't necessary but could be useful.)
 
-``DO WHEN`` and ``DO AFTER`` actions are applied directly onto the
-result of an affected statement, whereas ``DO ON COMMIT`` is applied
+``BEFORE`` and ``AFTER`` actions are applied directly onto the
+result of an affected statement, whereas ``AFTER COMMIT OF`` is applied
 shortly after the transaction containing the affected statement has
-been successfully committed.  Thus, ``DO WHEN``/``DO AFTER`` are
+been successfully committed.  Thus, ``BEFORE``/``AFTER`` are
 suitable for actions that are themselves transactional in nature and
 can be rolled back together with the relevant statement, such as
-writing into an audit log set.  ``DO ON COMMIT``, on the other hand,
+writing into an audit log set.  ``AFTER COMMIT OF``, on the other hand,
 is designed for actions that generate non-transactional external side
 effects, such as emitting an event on an external message bus.  Unlike
-other actions, errors raised in ``DO ON COMMIT`` action do not affect
+other actions, errors raised in ``AFTER COMMIT OF`` action do not affect
 the original statement and will only be logged.
-(And, again, ``DO ON COMMIT`` will probably be skipped in the first pass.)
+(And, again, ``AFTER COMMIT OF`` will probably be skipped in the first pass.)
 
 Backwards Compatibility
 =======================
@@ -83,7 +93,7 @@ There should not be any backwards compatibility issues.
 Rationale
 =========
 
-The split between ``DO WHEN`` and ``DO AFTER`` comes from the desire
+The split between ``BEFORE`` and ``AFTER`` comes from the desire
 to be able to have meaningful ``delete`` triggers and to allow
 ``update`` triggers to access the old object, while also having the
 ability to ``update`` objects that were newly inserted or already
@@ -95,12 +105,11 @@ updated twice by a single query in postgres), while the former can't
 be done easily if the triggers are run in a separate query (since the
 old date is gone).
 
-``DO WHEN`` triggers are evaluated for each object individually so
-that ``update`` triggers can be given access to the old object.
+We support both ``FOR EACH`` and ``FOR ALL`` because for all is more
+powerful while for each is simpler and more ergonomic in common
+cases. (Especially for ``update``, when otherwise you would often need
+to join ``_old__`` and ``__new__``.
 
-``DO AFTER`` policies are evaluated for the whole set at once because
-that's what Elvis's old RFC did and it seems sometimes useful. I don't
-feel strongly about it.
 
 Implementation considerations
 =============================
@@ -108,9 +117,9 @@ Implementation considerations
 The `original RFC <https://github.com/edgedb/rfcs/pull/50>`_ suggested
 implementing ``DO AFTER`` as a simple query rewrite mechanism,
 in which the expressions to perform are injected into the query.
-We can use approximately that mechansim to implement ``DO WHEN`` triggers.
+We can use approximately that mechansim to implement ``BEFORE`` triggers.
 
-For ``DO AFTER``, we will instead populate a temporary table with the
+For ``AFTER``, we will instead populate a temporary table with the
 id and type of the trigger-containing objects that have been inserted
 or updated.  We will then execute the triggers in a separate query
 that consumes rows from the temporary table and executes the triggers.
