@@ -17,7 +17,7 @@ Motivation
 ==========
 
 Triggers are useful for things such as generating audit logs,
-maintaining change metadata (mtime) and generating external events.
+maintaining change metadata (last modification time) and generating external events.
 
 Specification
 =============
@@ -97,7 +97,7 @@ The split between ``BEFORE`` and ``AFTER`` comes from the desire
 to be able to have meaningful ``delete`` triggers and to allow
 ``update`` triggers to access the old object, while also having the
 ability to ``update`` objects that were newly inserted or already
-updated (important for ``mtime`` style triggers).
+updated (important for maintaining last modification metadata).
 
 The latter is difficult to do for implementation reasons if the
 trigger is inlined inside the query itself (because rows can not be
