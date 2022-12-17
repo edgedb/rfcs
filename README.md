@@ -9,6 +9,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 ### Current Drafts
 * [RFC 1015 - Full text search](./text/1015-full-text-search.rst)
 * [RFC 1016 - Enabling and disabling extensions](./text/1016-extension-control.rst)
+* [RFC 1020 - Triggers](./text/1020-triggers.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
