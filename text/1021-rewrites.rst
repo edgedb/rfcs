@@ -14,6 +14,7 @@ applied to properties and links on INSERT and UPDATE of objects.
 
 They can be thought of as a generalization of ``default``.
 
+
 Motivation
 ==========
 
@@ -25,8 +26,11 @@ The most straightforward example of this is having a
 modified.
 
 It is also valuable when (probably for performance reasons) you wish
-to maintain a field that is derived from other object
-state. (For example, maintaining a count of friends.)
+to maintain a field that is derived from other object state (for
+example, maintaining a count of friends) or if you want to rewrite
+incoming data on the database side, perhaps for backward compatability
+reasons.
+
 
 Note
 ====
@@ -35,6 +39,7 @@ This is a companion to
 `RFC 1020 <https://github.com/edgedb/rfcs/blob/master/text/1020-triggers.rst>`_,
 in that they work together to cover most of the desired use cases that motivated
 a previous `previous version triggers RFC <https://github.com/edgedb/rfcs/pull/70>`_
+
 
 Specification
 =============
@@ -57,10 +62,18 @@ bound to the new value object being inserted or updated.
 In purely ``update`` rewrite rules, ``__old__`` will refer to the old
 version of the object.
 
-The special variable ``__fields__`` will be bound to all of the
-properties of ``<type-name>`` that were explicitly provided in the
-``insert`` or ``update``. This allows rewrite rules to distinguish
-between an explicitly provided empty set and no value being specified.
+The special variable ``__specified__`` will be bound to a named tuple
+containing a ``bool`` field for each pointer of ``<type-name>`` that
+is true if that pointer was explicitly provided in the ``insert`` or
+``update``.
+This allows rewrite rules to distinguish between an
+explicitly provided empty set and no value being specified.
+
+The names are sorted alphabetically in the tuple.
+Note that which pointers appear in the tuple is determined by the
+type where the rewrite rule was *defined*, not the type at which
+it is being *evaluated* (which could be a subtype). This ensures
+that the type is always consistent.
 
 (Whether ``<type-name>`` should refer to the object being mutated is
 kind of fraught; we leave that undecided for now. Some discussion of
@@ -73,13 +86,11 @@ Restrictions
 Each pointer can have one ``insert`` rewrite rule and one ``update``
 rewrite rule. They can be specified together if desired.
 
-Specifying a rewrite rule on a pointer is not allowed if an ancestor
-has already specified that kind of rewrite rule for the pointer.
-(Alternately: multiple rewrite rules are applied in MRO order?)
-
-
 Behavior
 --------
+
+For any pointer, the rewrite rule that applies is the one that appears
+*first* in the MRO (like we do with defaults).
 
 When we perform ``insert`` or ``update``, after computing the
 values for the object, but before performing the operation or
@@ -87,8 +98,13 @@ evaluating the write-side access policies, we evaluate each of the
 applicable rewrite rules and take the result as the actual value for
 the pointer.
 
+The rewrites are evaluated "simultaneously"; each rewrite sees the
+original object.
+
+Access policies *are* evaluated inside the expression.
+
 The rule for a pointer is applied whether or not that pointer is
-explicitly specified in the operation. ``__fields__`` can be used
+explicitly specified in the operation. ``__specified__`` can be used
 to determine whether it was and take action based on that.
 
 Note that for ``insert``, rewrite rules are *extremely* similar to
@@ -117,7 +133,7 @@ allow a manual override of it also::
       required property mtime -> datetime {
           rewrite insert, update using (
               datetime_of_statement()
-              if 'mtime' not in __fields__
+              if not __specified__.mtime
               else .mtime
           )
       }
@@ -132,6 +148,17 @@ Maintain a cached count of the cardinality of a multi link::
           rewrite insert, update using (count(.likes))
       }
   };
+
+Rewrite a incoming pointer (maybe for backward compatibility after a
+format change):
+
+  type Item {
+      # ...
+      required property product_code -> str {
+          rewrite insert, update using (str_upper(.product_code))
+      }
+  };
+
 
 Backwards Compatibility
 =======================
@@ -158,10 +185,66 @@ of this, if necessary.
 Security Implications
 =====================
 
-XXX: Should access policies be applied inside of mutation rewrites?
+Access policies *are* evaluated inside the expression.
+
 
 Rejected Alternative Ideas
 ==========================
+
+Different ways of representing which pointers are specified
+-----------------------------------------------------------
+
+The original proposal had a ``__fields__`` field that contained a
+set of strings of names of specified pointers. This worked but was
+ugly and would have required some special work to implement
+efficiently in the common case. If you actually want such a set,
+it can be obtained in the current proposal with::
+
+  (select json_object_unpack(<json>__specified__) filter <bool>.1).0
+
+Another proposal was to have a magic "function" (or operator) that
+returned whether a field was set, such as ``specified(.friends)``
+would be true if ``friends`` was specified in the DML statement.
+This was rejected because it had to either be purely magic syntax
+or required introducing a new notion of "unspecified" into the
+semantics that could only be distinguished from ``{}`` by the
+new ``specified`` function, and because the named tuple proposal
+reads just as well but without any worrying implications.
+
+Calling ``__specified__`` something else
+----------------------------------------
+
+Originally I proposed ``__fields__``, which was bad. ``__specified__``
+is kind of long, so something shorter would be nice, but our time
+spent looking at a thesaurus did not help us.
+
+The best option we had was ``__set__``, which Yury hated. That would
+look something like::
+
+  type Entry {
+      # ...
+      required property mtime -> datetime {
+          rewrite insert, update using (
+              datetime_of_statement() if not __set__.mtime else .mtime
+          )
+      }
+  };
+
+
+Making this explicitly an extension of default
+----------------------------------------------
+
+Another proposal was to treat this exactly as default generalized to
+``update`` (to handle the mtime cases) and to add a notion of
+``cached property`` for things like the ``cached_like_count`` case.
+
+This was rejected because while we do eventually want some kind of
+cached/materialized values, there is a lot of complexity in the design
+space there and we don't want to ship a super limited version of it
+that might mislead users and limit our options in the future.
+
+It also doesn't support genuine "rewrite" style operations.
+
 
 Making mutation rewrites per-object instead of per-pointer
 ----------------------------------------------------------
@@ -176,7 +259,7 @@ Generalized policy based query rewrite
 --------------------------------------
 A `previous RFC
 <https://github.com/edgedb/rfcs/pull/50>`_ written by Elvis, combined
-triggers and access policies into one generic mechanims. We decided
+triggers and access policies into one generic mechanism. We decided
 this was likely to be too complex, and that they should be split.
 
 I also think there would have been severe implementation difficulties.
