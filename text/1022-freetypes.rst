@@ -113,14 +113,17 @@ Updates to SDL
 
 Summary:
 
-* Make the ``property`` and ``link`` keyword optional. The kind of a pointer
-  can be inferred automatically in all situations. Users will be encouraged to
-  explicitly specify the kind of a pointer for readability or enforcement
-  purposes where necessary.
+* Make the ``property`` and ``link`` keyword optional for all non-computed
+  properties and links. The kind of a pointer can be inferred automatically
+  in all situations. Users will be encouraged to explicitly specify the
+  kind of a pointer for readability or enforcement purposes where necessary.
 
-* Replace ``->`` symbol with ``:`` for type annotations of pointers and
-  functions return types. ``->`` will still be valid syntax, but we will
-  update our documentation and output of introspection commands to use ``:``.
+* Replace the ``->`` symbol with ``:`` for type annotations of pointers.
+  ``->`` will still be valid syntax, but we will update our documentation
+  and output of introspection commands to use ``:``.
+
+* Keep the ``->`` symbol for function return type annotation (in other words
+  we will not add support for using ``:`` in return type annotation).
 
 Motivation:
 
@@ -167,7 +170,7 @@ Example:
 |  }                                   |   }                                  |
 |                                      |                                      |
 |  type Show extending Content {       |   type Show extending Content {      |
-|    property num_seasons :=           |     num_seasons :=                   |
+|    property num_seasons :=           |     property num_seasons :=          |
 |      count(.<show[is Season]);       |       count(.<show[is Season]);      |
 |  }                                   |   }                                  |
 +--------------------------------------+--------------------------------------+
@@ -211,3 +214,10 @@ Make "required" the default pointer type in free objects
 This would draw nice parallels between tuples and free objects in EdgeQL
 queries, but would make it exceptionally hard to comprehend types in SDL files.
 
+
+Make property/link modifiers optional for computed fields
+---------------------------------------------------------
+
+Computed pointers and fields like ``default`` both use the ``:=`` syntax.
+Making ``property`` and ``link`` modifiers optional for computeds would make
+them look like fields.
