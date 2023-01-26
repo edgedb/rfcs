@@ -150,7 +150,7 @@ Maintain a cached count of the cardinality of a multi link::
   };
 
 Rewrite a incoming pointer (maybe for backward compatibility after a
-format change):
+format change)::
 
   type Item {
       # ...
