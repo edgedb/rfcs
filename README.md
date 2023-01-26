@@ -11,6 +11,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 * [RFC 1016 - Enabling and disabling extensions](./text/1016-extension-control.rst)
 * [RFC 1020 - Triggers](./text/1020-triggers.rst)
 * [RFC 1021 - Mutation rewrites](./text/1021-rewrites.rst)
+* [RFC 1022 - Typing free objects & simplifying SDL syntax](./text/1022-freetypes.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
