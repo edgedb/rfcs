@@ -66,61 +66,117 @@ We propose to enhance the shape construct with the following syntax:
   A simple example::
 
     select Person {
-      *  # will expand into "id, name"
+      *  # Will expand into "id, name".
     };
 
   An example of ``*`` including inherited pointers::
 
     select Hero {
-      *  # will expand into "id, name, secret_identity"
+      *  # Will expand into "id, name, secret_identity".
     };
 
   An example of ``*`` including pointers that were already specified::
 
     select Hero {
       name := 'try me!',
-      *,  # will expand into "id, name, secret_identity" leading to
-          # a compile-time error (for the same reason why
-          # ``select Hero {name, name := 'blah'};`` would not compile.)
-          # No shadowing is allowed.
+      *,  # Will expand into "id, name, secret_identity",
+          # where `name` will be coming from the `name := 'try me!'`
+          # computed.
     };
 
   An complex example illustrating using ``*`` in nested shapes::
 
     select Hero {
-      *,  # will expand into "id, name, secret_identity"
+      *,  # Will expand into "id, name, secret_identity".
 
       villains: {
-        *  # will expand into "id, name"
-           # (the `Villain` type doesn't have the `secret_identity` property)
+        *  # Will expand into "id, name"
+           # (the `Villain` type doesn't have the `secret_identity` property).
 
         nemesis: {
-          *  # will expand into "id, name, secret_identity"
+          *  # Will expand into "id, name, secret_identity".
         }
       }
     };
 
-* ``<type expression>.*``: extend the shape with all properties reachable from
-  the computed type of ``type expression``.
+* ``**``: extend the shape with all properties and *links* defined on the type,
+  including the inherited ones. Linked shapes will be defined with the
+  ``*`` splat.
+
+  A simple example::
+
+    select Person {
+      **  # Will expand into "id, name".
+          # The `Person` type doesn't have any links defined on it.
+    };
+
+  An example of ``**`` including inherited pointers and links::
+
+    select Hero {
+      **  # Will expand into:
+          #   {
+          #     id,
+          #     name,
+          #     secret_identity,
+          #     villains: { * }
+          #   }
+          #
+          # which will in turn expand into:
+          #   {
+          #     id,
+          #     name,
+          #     secret_identity,
+          #     villains: { id, name }
+          #   }
+    };
+
+  It's possible use ``**`` and redefine the pointers it expands into::
+
+    select Hero {
+      **,
+      villains: {     # Use `**` to auto-include all linked types
+        name,         # into the shapes, but define the `villains`
+        level := 80   # link to include just the `name` property
+      }               # and the `level` computed.
+    };
+
+* ``<type expression>.*`` and ``<type expression>.**``: extend the shape with
+  all properties/links reachable from the computed type of ``type expression``.
 
   A trivial example when the type expression is a reference to the base type::
 
     select Hero {
-      Person.*  # will expand into "id, name"
+      Person.*  # Will expand into "id, name".
     };
 
-  A more complicated type expression::
+  A more complicated type expression using ``*``::
 
     select Hero {
-      (Hero | Villain).*  # would expand to "id, name"
+      (Hero | Villain).*  # Would expand to "id, name".
     }
 
-* ``[is ...].*``: a polymorphic variant.
+  A more complicated type expression using ``**`` (the query wouldn't
+  compile but we use it nevertheless to illustrate the proposed behavior
+  of ``**``)::
 
-  Example::
+    select Hero {
+      (Hero & Villain).**  # Would expand into
+                           #   {
+                           #     id,
+                           #     name,
+                           #     secret_identity,
+                           #     villains: { * },
+                           #     nemesis: { * }
+                           #   }
+    }
+
+* ``[is ...].*`` and ``[is ...].**``: polymorphic variants for the above
+  splat syntaxes.
+
+  An example of ``*``::
 
     select Person {
-      [is Hero].*  # expand into
+      [is Hero].*  # Expands into
                    #   {
                    #      [is Hero].id,
                    #      [is Hero].name,
@@ -128,6 +184,17 @@ We propose to enhance the shape construct with the following syntax:
                    #   }
     }
 
+  An example of ``**``::
+
+    select Person {
+      [is Hero].**  # Expands into
+                    #   {
+                    #      [is Hero].id,
+                    #      [is Hero].name,
+                    #      [is Hero].secret_identity,
+                    #      [is Hero].villains: { * },
+                    #   }
+    }
 
 Splats in free object types
 ===========================
@@ -203,8 +270,8 @@ expanded from splats::
 Rejected ideas
 ==============
 
-Use ``...`` for splats
-----------------------
+Use prefix/postfix ``...`` for splats
+-------------------------------------
 
 The prefix ``...`` operator, available in JavaScript (the spread operator)
 and in GraphQL (fragments), seemed like a viable alternative to ``*``.
@@ -242,6 +309,22 @@ We decided against using it in EdgeQL for the following reasons:
   |  }                               |   }                               |
   +----------------------------------+-----------------------------------+
 
+* With ``...`` as a postfix operator implementing the proposed ``*`` syntax it
+  is unclear how we would design its ``**`` variant. Using postfix ``......``
+  operator is obviously not a viable option.
+
+
+Make ``*`` expand to both links and properties
+----------------------------------------------
+
+* Users will inevitably use splats in their application code (i.e. not just in
+  REPL) and selecting all links can make queries slower. Besides, selecting all
+  properties is typically a more common need than selecting all properties
+  and all linked data.
+
+* We already have splats in our TypeScript query builder API and the current
+  implementation only expands ``*`` into list of properties.
+
 
 Backwards compatibility
 =======================
@@ -252,6 +335,6 @@ The proposal is fully backwards compatible.
 Implementation plan
 ===================
 
-The proposal can be implemented in stages. E.g. EdgeDB version N can ship
-with the basic ``*`` supported in shapes, and EdgeDB N+1 can add the rest
-of the proposed syntax and capabilities.
+The proposal can be implemented in stages. E.g. EdgeDB version 3.0 will have
+the basic ``*`` and ``**`` operators supported in shapes, while EdgeDB 4.0
+or later can have the proposed type language extensions implemented.
