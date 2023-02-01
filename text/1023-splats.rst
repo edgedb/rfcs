@@ -152,6 +152,8 @@ We propose to enhance the shape construct with the following syntax:
       }               # and the `level` computed.
     };
 
+  Note that ``**`` does not expand the ``__type__`` link.
+
 * ``<type expression>.*`` and ``<type expression>.**``: extend the shape with
   all properties/links reachable from the computed type of ``type expression``.
 
