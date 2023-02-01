@@ -99,6 +99,18 @@ We propose to enhance the shape construct with the following syntax:
       }
     };
 
+  Another example to demonstrate that splats work at a "symbolic"
+  level, expanding the actual shape to be selected, yet ignoring how
+  and where things are actually defined::
+
+    with
+      CapHero := Hero { name := str_upper(.name) }
+    select
+      (
+        CapHero { * },      # will select a shape with upper-cased names
+        CapHero { Hero.* }  # will *also* select a share with upper-cased names
+      )
+
 * ``**``: extend the shape with all properties and *links* defined on the type,
   including the inherited ones. Linked shapes will be defined with the
   ``*`` splat.
@@ -251,21 +263,6 @@ We propose to extend the free shape type syntax with the following constructs:
                         #   }
      }) -> bool using (...)
 
-When we add a ``never`` type eventually (to pave the path to implementing
-the ``raise`` expression) we will allow ``never`` types to shadow properties
-expanded from splats::
-
-     function validate(data: {
-       required Hero.*,
-       id: never,
-
-       # will expand into:
-       #   {
-       #     required name: str,
-       #     required secret_identity: str
-       #   }
-     }) -> bool using (...)
-
 
 Rejected ideas
 ==============
@@ -324,6 +321,74 @@ Make ``*`` expand to both links and properties
 
 * We already have splats in our TypeScript query builder API and the current
   implementation only expands ``*`` into list of properties.
+
+
+Field exclusion syntax
+----------------------
+
+Field exclusion can be useful to splat every property from a type except a
+few specific ones. For example, an earlier revision of this RFC was proposing
+to use the ``never`` type for this purpose::
+
+     function validate(data: {
+       required Hero.*,
+       id: never,
+
+       # will expand into:
+       #   {
+       #     required name: str,
+       #     required secret_identity: str
+       #   }
+     }) -> bool using (...)
+
+However, it was pointed out that in the context of EdgeQL using ``never`` like
+this can be problematic, as it would propagate through the query typing
+converting everything to ``never``. Another alternative would be to use an
+unary ``-`` operator, as in::
+
+     function validate(data: {
+       required Hero.*,
+       -id,
+
+       # will expand into:
+       #   {
+       #     required name: str,
+       #     required secret_identity: str
+       #   }
+     }) -> bool using (...)
+
+the downside of that approach is that the semantics of ``-`` in this context
+is not entirely clear. Ultimately it was decided that designing the field
+exclusion syntax, while possible, is out of scope of this proposal.
+
+Allow splats to be used on values
+---------------------------------
+
+The following query would not compile::
+
+    with
+      h := (select Hero { computed := 42 })
+    select
+      Hero {
+        h.*  # compile-time error!
+      }
+
+the query would fail with a compile-time error suggesting that ``.*`` can
+only be used on a *type*. A simple way to fix the query would be to
+use the ``typeof`` operator::
+
+    with
+      h := (select Hero { computed := 42 })
+    select
+      Hero {
+        (typeof h).*  # The shape will expand to
+                      #   {
+                      #     id,
+                      #     name,
+                      #     secret_identity,
+                      #     computed,
+                      #   }
+      }
 
 
 Backwards compatibility
