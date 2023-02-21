@@ -111,6 +111,11 @@ Note that for ``insert``, rewrite rules are *extremely* similar to
 ``default`` (which can now refer to other pointers), but are applied
 even when a value was specified.
 
+If a pointer has both a rewrite and a default, and the value was not
+specified during an insert, default is applied first. 
+Within rewrite's ``<expr>``, ``__subject__`` contains the value provided
+by the default, but ``__specified__`` contains ``false``, reflecting the
+state of the original query.
 
 Examples
 ========
