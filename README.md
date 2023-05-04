@@ -7,12 +7,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 [//]: # "NOTE: This section is auto-generated with update_index.py"
 
 ### Current Drafts
-* [RFC 1015 - Full text search](./text/1015-full-text-search.rst)
 * [RFC 1016 - Enabling and disabling extensions](./text/1016-extension-control.rst)
-* [RFC 1020 - Triggers](./text/1020-triggers.rst)
-* [RFC 1021 - Mutation rewrites](./text/1021-rewrites.rst)
-* [RFC 1022 - Typing free objects & simplifying SDL syntax](./text/1022-freetypes.rst)
-* [RFC 1023 - Adding Splats Syntax](./text/1023-splats.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
@@ -30,6 +25,12 @@ To read more on when and how to submit an RFC document, see RFC 1.
 * [RFC 1011 - Object-Level Security](./text/1011-object-level-security.rst) (accepted)
 * [RFC 1012 - Range types](./text/1012-range-types.rst) (accepted)
 * [RFC 1013 - Date/time arithmetic](./text/1013-datetime-arithmetic.rst) (accepted)
+* [RFC 1015 - Full text search](./text/1015-full-text-search.rst)
+* [RFC 1017 - Abstract index](https://github.com/edgedb/rfcs/blob/master/text/1017-abstract-index.rst) (accepted)
+* [RFC 1020 - Triggers](./text/1020-triggers.rst) (accepted)
+* [RFC 1021 - Mutation rewrites](./text/1021-rewrites.rst) (accepted)
+* [RFC 1022 - Typing free objects & simplifying SDL syntax](./text/1022-freetypes.rst) (accepted)
+* [RFC 1023 - Adding Splats Syntax](./text/1023-splats.rst) (accepted)
 
 ## License
 
