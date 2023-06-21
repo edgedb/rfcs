@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Accepted
     Type: Feature
     Created: 2023-01-12
     Authors: Michel J. Sullivan <sully@msully.net>
@@ -112,7 +112,7 @@ Note that for ``insert``, rewrite rules are *extremely* similar to
 even when a value was specified.
 
 If a pointer has both a rewrite and a default, and the value was not
-specified during an insert, default is applied first. 
+specified during an insert, default is applied first.
 Within rewrite's ``<expr>``, ``__subject__`` contains the value provided
 by the default, but ``__specified__`` contains ``false``, reflecting the
 state of the original query.

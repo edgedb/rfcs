@@ -1,6 +1,6 @@
 ::
 
-    Status: Draft
+    Status: Accepted
     Type: Feature
     Created: 2022-12-15
     Authors: Michel J. Sullivan <sully@msully.net>
@@ -47,11 +47,6 @@ been checked.  For ``insert`` and ``update``, the variable ``__new__``
 refers to the new value of the modified object, and for ``update`` and
 ``delete``, the variable ``__old__`` refers to the old value.
 
-XXX: Whether the overall state of the database (if you query things
-apart from ``__new__`` and ``__old__`` is from before the query or
-after the query is an open question. Before the query is technically
-the most straightforward.
-
 ``AFTER COMMIT OF`` triggers will run "shortly" after the containing
 transaction is committed. It has ``__new__`` variables, like ``AFTER``
 triggers. The state of the database is indeterminate, since an
@@ -69,8 +64,19 @@ A failure in an ``AFTER`` trigger causes the query to fail.
 
 Trigger activation for ``AFTER`` triggers is chained but not recursive:
 triggers can activate other triggers, but a trigger cycle is an error.
-XXX: This could also reasonably disallowed.
 
+Triggers are fired off in "stages": first all triggers that were triggered
+by the initial query fire, then any triggers that were triggered in the
+first stage, and so on.
+
+It is an error if a trigger would need to fire in multiple stages.
+
+The overall state of the database during the trigger is from *after*
+the query. That is, if you access data not via ``__new__`` and
+``__old__``, the data is from after the query.
+
+More generally, if there are multiple stages of triggers fired, the
+database state is from after the previous stage.
 
 Backwards Compatibility
 =======================
@@ -79,18 +85,6 @@ There should not be any backwards compatibility issues.
 
 Rationale
 =========
-
-The split between ``BEFORE`` and ``AFTER`` comes from the desire
-to be able to have meaningful ``delete`` triggers and to allow
-``update`` triggers to access the old object, while also having the
-ability to ``update`` objects that were newly inserted or already
-updated (important for ``mtime`` style triggers).
-
-The latter is difficult to do for implementation reasons if the
-trigger is inlined inside the query itself (because rows can not be
-updated twice by a single query in postgres), while the former can't
-be done easily if the triggers are run in a separate query (since the
-old date is gone).
 
 We support both ``FOR EACH`` and ``FOR ALL`` because for all is more
 powerful while for each is simpler and more ergonomic in common
@@ -101,26 +95,15 @@ to join ``_old__`` and ``__new__``.
 Implementation considerations
 =============================
 
-The `original RFC <https://github.com/edgedb/rfcs/pull/50>`_ suggested
-implementing ``DO AFTER`` as a simple query rewrite mechanism,
-in which the expressions to perform are injected into the query.
-We can use approximately that mechansim to implement ``BEFORE`` triggers.
+``AFTER`` triggers will be implemented through a query rewrite mechanism
+in which we inline the triggers bodies into the query and run them on
+the modified objects.
 
-For ``AFTER``, we will instead populate a temporary table with the
-id and type of the trigger-containing objects that have been inserted
-or updated.  We will then execute the triggers in a separate query
-that consumes rows from the temporary table and executes the triggers.
-
-The seperate query will be performed in the same implicit transaction,
-and can be pipelined so that no additional roundtrip between EdgeDB
-and Postgres is needed.
-
-
-``DO ON COMMIT`` is the most complex action to implement, because it requires
-two parts: 1) the query rewrite part that schedules the action by writing the
-affected data and the action expression into the job table, and 2) the runner
-task that pops the expression and input data from the job table and performs
-the action.
+``AFTER COMMIT OF`` is the most complex action to implement, because
+it requires two parts: 1) the query rewrite part that schedules the
+action by writing the affected data and the action expression into the
+job table, and 2) the runner task that pops the expression and input
+data from the job table and performs the action.
 
 As a result, we will probably skip it for the initial 3.0 implementation.
 
@@ -128,7 +111,17 @@ As a result, we will probably skip it for the initial 3.0 implementation.
 Security Implications
 =====================
 
-Probably?
+This whole feature is at least "security adjacent", since it may be
+used to implement things like audit logs and generalized constraints.
+
+The main direct security question is in the interaction with access
+policies.  Triggers *can* see the object they are operating on, even
+if it would otherwise not be visible due to access policies. (Much
+like how a freshly inserted object is still returned from the query
+even if it would not be visible.)
+
+Otherwise, access policies *are* applied during trigger evaluation.
+
 
 Rejected Alternative Ideas
 ==========================
