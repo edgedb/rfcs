@@ -38,7 +38,7 @@ baseline). Postgres introduces two types for this purpose: ``tsvector`` and
 ``tsquery``.
 
 The ``tsvector`` type stores a processed version of the text. It basically
-contains information about the tokens making up the text well as their
+contains information about the tokens making up the text as well as their
 positions. This is the version of the text that is actually targeted by the
 FTS. Postgres also provides a few different ways to convert plain text into a
 ``tsvector``. There's also a way to create an index that converts a text
@@ -58,74 +58,272 @@ Specification
 =============
 
 There's a lot of functionality involved in supporting FTS, but it's a fairly
-niche thing, so it makes sense to create a ``module fts`` for all of the FTS
-tools.
+niche thing, so it makes sense to create a ``module std::fts`` for all of the
+FTS tools.
 
-In EdgeDB we should avoid having an explicit "document" scalar like
-``tsvector``. Instead we can rely on various parameters, annotations and
-indexes to specify how the plain text ``str`` should be parsed into tokens.
-This will allow us to keep the queries involving FTS mostly implementation
-agnostic. Some FTS backends may have functions specific to them, but the goal
-is to provide good coverage of common FTS functionality.
+
+Indexing
+--------
+
+Indexes can be used to declare which properties should be subject to FTS
+functionality. They can also be used to annotate properties with search
+groups, language information, etc. Search groups can then be used to fine tune
+results by assigning different weights to each group during searches. Language
+information would determine what data is targeted based on the language of the
+search query. The proposed index definitions would thus have a semantic effect
+determining how exactly FTS should be carried out for a given object type.
+
+In EdgeDB we don't need an explicit "document" scalar that users interact
+with, because we don't allow arbitrary strings to be processed by FTS
+functions, only indexed properties. However, we still need a type similar to
+``tsvector`` to record things like weight category and language that
+correspond to a particular part of the indexed string. This type should be
+opaque and not valid as a result of a user query. Instead it can be used in
+index expressions and returned by functions that can only be used in index
+expressions. The type being opaque makes it possible to add more FTS functions
+that affect how the string is interpreted without having to change all the
+signatures.
+
+This processed document type and a couple of functions that use it are::
+
+  type fts::DocVector {
+    # This is hidden implementation, so it's more of a concept
+    # than an actual object type. Under the hood it might be a
+    # record or not even have instances at all (see Implementation).
+    required document: str;
+    language: str;
+    weight_category: str;
+  }
+
+  function fts::language(doc: str, lang: str) -> fts::DocVector
+  function fts::weight(doc: str, category: str) -> fts::DocVector
+
+  # Both functions can take a str or DocVector so that they can be
+  # applied in arbitrary order
+  function fts::language(doc: fts::DocVector, lang: str) -> fts::DocVector
+  function fts::weight(doc: fts::DocVector, category: str) -> fts::DocVector
+
+Since ``DocVector`` is opaque and is not valid in regular queries, we should
+really make it some sort of "internal" or "system" type. It doesn't need to be
+part of schema introspection and likely will only appear as part of signatures
+of the special index functions. Incidentally, these special functions also
+don't need to be exposed to introspection.
+
+*Language* is an important part of FTS and we generally assume it will
+be part of the ``index`` declaration as well as of the search functions.
+
+Postgres passes the language as part of the index configuration: ``CREATE
+INDEX pgweb_idx ON pgweb USING GIN (to_tsvector('english', body));``.
+
+Elasticsearch has language-specific analyzers which can be used in the mapping
+corresponding to a given index.
+
+Algolia has an ``indexLanguages`` setting for its indexes.
+
+Typesense does not appear to have any language-specific index settings.
 
 In order to simplify FTS query language, we will use a ``str`` to represent
 queries rather than introducing a new scalar type. This string is expected to
 contain FTS search queries in a format similar to how they might be typed into
 a search field.
 
-The searching functionality can be split along two axis:
-1) what FTS operates on (``str`` vs ``Object``)
-2) what FTS returns (``bool`` vs some ranked results)
 
-The task of testing whether a document matches an FTS query would be performed
-by the following built-in functions::
+Abstract Index
+--------------
 
-  function fts::test(doc: str, query: str) -> bool
-  function fts::test(doc: Object, query: str) -> bool
+We assume that each FTS implementation will supply its own ``index`` with the
+particular parameters that are configurable for that implementation (which
+could be some backend-specific JSON config, etc.). The general index
+definition, however has no parameters and will be of the following form::
 
-The input can be either a ``str`` or an entire ``Object``. The object type
-must have some ``str`` properties, however. Trying to perform FTS on a type
-without ``str`` properties is an error. This function is generally intended to
-be used in ``filter`` clauses in cases where there's no need for hinting what
-matched, but the results are simple enough to be self-explanatory.
+  abstract index fts::textsearch()
 
-The ranked results need to be rich objects with several relevant properties,
-akin to free objects used for returning ``group`` results. The difference is
-that we cannot use a ``FreeObject`` as a return type of a function, we need a
-specialized type for that: ``FTSResult``. This type is defined as follows::
+Additionally there's sometimes a need to index prefixes to facilitate
+prefix-based searches (such as for autocomplete). This can be accomplished by
+adding a parameter to the ``abstract index`` definition::
 
-  type fts::FTSResult {
-    property rank -> float64 {
-      default := 0;
-    }
-    property highlights -> array<str> {
-      default := [];
-    }
+  abstract index fts::textsearch(
+      named only index_prefixes: bool = false
+  )
+
+Setting up a prefix-based index, wouldn't really do much for Postgres.
+
+In Elasticsearch that would translate into ``index_prefixes`` with default
+minimum and maximum prefix values.
+
+In Algolia prefix searches are by default enabled for all, but can be disabled
+via ``disablePrefixOnAttributes``, which would correspond to not turning on
+``index_prefixes``.
+
+In Typesense prefix searching is entirely controlled by the query and no
+special index settings are necessary one way or another, much like in
+Postgres.
+
+Therefore, if we introduce a generic prefix search FTS functionality we can
+add ``index_prefixes`` parameter to the generic abstract index definition.
+
+
+Concrete Index
+--------------
+
+As mentioned earlier concrete indexes on types will specify which properties
+the FTS functions should be targeting. When targeting multiple properties they
+can be specified as separate index ``on`` parameters or just concatenated into
+a single expression. Keeping the parameters separate makes it possible to
+assign different weights to them.
+
+For example::
+
+  type Document {
+      title: str;
+      body: str;
+      internal: str;
+
+      index fts::textsearch on (
+        fts::language(.title, 'english'),
+        fts::language(.body, 'english'),
+      );
   }
 
-If ranking was requested, then the value will be written in ``rank``.
+The above schema declares that only ``title`` and ``body`` properties are
+subject to FTS functions, while the ``internal`` property will be ignored by
+searches. These properties are wrapped in a ``language`` special function that
+specifies the language of the corresponding parts (which affects the
+indexing).
+
+In order to add weights, we use the other special function which can only
+appear in index specification::
+
+  type Document {
+      title: str;
+      body: str;
+      internal: str;
+
+      index fts::textsearch on (
+        fts::weight(fts::language(.title, 'english'), 'A'),
+        fts::weight(fts::language(.body, 'english'), 'B'),
+      );
+  }
+
+The ``fts::weight`` function cannot be used in regular queries (because its
+return type is not supposed to be exposed to the user), but in index
+specification it associates a weight group with a particular indexed
+expression (typically just a property). Using strings to denote weight groups
+makes it less likely that the users confuse the *group name* with the actual
+associated weight *value*.
+
+The most basic naming scheme for weight groups could be similar to Postgres:
+just using the alphabet starting with 'A'. We can have more than 4 groups,
+though for the general case. If the backend supports fewer groups than
+indicated by index specification, we simply use as many groups as we can
+starting with 'A' and merge the rest into the last valid group ('D' for
+Postgres).
+
+In principle the group names can be generalized to be any ``str`` and the
+lexicographical order can then be used to determine the relative group order
+(for purpose of picking group weights). This would allow using Postgres-style
+groups 'A', 'B', 'C', 'D' or give groups more descriptive names like '1 - most
+relevant', '2 - regular', '3 - marginal'.
+
+
+Inheritance
+-----------
+
+Since ``fts::textsearch`` index is semantic and has effect on how FTS
+functions work, we cannot have multiple versions of this index defined on a
+single object type. So at most one FTS index can be defined on any type
+(subject to ``??`` once the extension enabling/disabling is implemented). In
+particular this means that when an FTS index is inherited by a type and a new
+index definition is provided in the extending type, the new definition
+completely overrides the inherited one.
+
+For example::
+
+  type Document {
+      body: str;
+      index fts::textsearch on (fts::language(.body, 'english'));
+  }
+
+  type InternalDoc extending Document {
+      internal: str;
+  }
+
+  type TitledDoc extending Document {
+      title: str;
+      index fts::textsearch on (fts::language(.title, 'english'));
+  }
+
+The ``InternalDoc`` type has no FTS index of its own, so it inherits the index
+from ``Document``. Thus only the ``.body`` is indexed. Conversely,
+``TitledDoc`` defines a new ``fts::textsearch`` index on ``.title``, but the
+``body`` property would no longer be indexed for ``TitledDoc`` objects.
+
+The reason for this design is that we're limited to having no more than one
+FTS index per type as it covers all search functionality. This means that we
+must have a way of overriding an existing index with type-specific one. The
+least surprising way of doing that is for the explicitly specified index to
+override the inherited one.
+
+In case of multiple inheritance indexes may conflict with one another, that is
+considered an error and the user is required to explicitly provide an FTS
+index to resolve this (to minimize ambiguity).
+
+All of these extra rules apply only to FTS indexes and not indexes in general.
+
+
+Search Functions
+----------------
+
+An important feature of the search function is that it actually performs the
+job typically done by the ``FILTER`` clause. The function is supposed to
+filter a bunch of objects based on the FTS query and indexed fields. In
+addition to filtering, the results may be annotated with relevance (ranked)
+and potentially with highlighted matches::
+
+  function std::fts::search(
+      doc: anyobject,
+      query: str,
+      named only language: str,
+      named only weights: optional array<float64> = {},
+      named only rank_opts: optional str = 'default',
+      named only highlight_opts: optional str = {}
+  ) -> optional tuple<
+    object: anyobject,
+    rank: float64,
+    highlights: array<str>
+  >
+
+The ``doc`` input provides the object that should be searched. The
+details of which properties should be searched and other FTS parameters will
+be provided by the FTS index on the specified type. Searching an unindexed
+type should simply produce no matches (resulting in an ``{}``).
+
+The ``language`` parameter indicated which language the query is using and
+therefore allows to target only the relevant documents if there are multiple
+languages.
+
+If ranking was requested (which is the default behavior), then the value will
+be written in ``rank``, otherwise the value ``0`` is used.
+
+The optional ``weights`` array provides relevance multipliers corresponding to
+each of the weight groups indicated by the FTS index. The weights have to be
+in the range from 0 to 1. If the weights are outside of the valid range an
+error is produced. There should be a default weights array in case no weights
+are provided. By default weights should start with ``1`` and be halved for
+every next group, indicating diminishing relevance. The ``weights`` array of
+values provided explicitly overrides the corresponding defaults. This means
+that first 4 groups would by default have the following weights: ``1``,
+``0.5``, ``0.25``, ``0.125``. On the other hand if the ``match`` was called
+with ``weights := [1, 0.7]`` as an argument, then the first 4 groups would
+have these weights: ``1``, ``0.7``, ``0.25``, ``0.125``. In order to only
+search the first 2 weight groups explicit weights of ``0`` need to be
+specified for the other groups: ``weights := [1, 0.7, 0, 0]``.
 
 If highlighting the matched text was requested, then the appropriate value
 will be written in ``highlights`` array. The array is needed in case the
 matches are highlighted separately (e.g. only the matched words are returned,
-omitting the surrounding text).
-
-These enhanced FTS matches would be performed by the following built-in
-functions::
-
-  function fts::match(
-    doc: str,
-    query: str,
-    rank_opts: optional str = 'default',
-    highlight_opts: optional str = {}
-  ) -> FTSResult
-
-  function fts::match(
-    doc: Object,
-    query: str,
-    rank_opts: str = 'default',
-    highlight_opts: optional str = {}
-  ) -> FTSResult
+omitting the surrounding text). The array will be empty if highlighting was
+not requested.
 
 The ``rank_opts`` and ``highlight_opts`` can potentially be backend-specific,
 however either one of them can take the value of ``{}`` with the meaning that
@@ -134,24 +332,61 @@ always accept ``default`` as a valid argument indicating that
 ranking/highlighting of the results should be done in some basic manner
 (typically using some faster method).
 
+It is worth considering implementing a search function that returns a free
+object instead of the named tuple (with the same structure). A free object
+would interact more naturally and smoothly with shapes used to get the right
+data for the output.
+
 Another type of search functionality involves "autocomplete"-style search for
 things matching a certain prefix. This is similar to regular matching, but
 typically the last word is treated as a prefix, while the start of the query
-matches exactly::
+matches exactly. Although it's possible to use one of the arguments to switch
+to this mode, it's probably better to have a dedicated function instead, since
+the actual FTS implementation may need a different call to be compiled to
+access the backend::
 
-  function fts::autocomplete(
-    doc: str,
-    query: str,
-    rank_opts: optional str = 'default',
-    highlight_opts: optional str = {}
-  ) -> FTSResult
+  function std::fts::autocomplete(
+      doc: set of anyobject,
+      query: str,
+      named only language: str,
+      named only weights: optional array<float64>,
+      named only rank_opts: optional str = 'default',
+      named only highlight_opts: optional str = {}
+  ) -> optional tuple<
+    object: anyobject,
+    rank: float64,
+    highlights: array<str>
+  >
 
-  function fts::autocomplete(
-    doc: Object,
-    query: str,
-    rank_opts: str = 'default',
-    highlight_opts: optional str = {}
-  ) -> FTSResult
+
+Implementation
+^^^^^^^^^^^^^^
+
+One of the implementation concerns is how inheritance interacts with FTS
+indexes and search functionality. The natural interpretation is that all the
+different fields should be targeted polymorphically as per individual index
+specification. This means that searching the root type of some documents would
+be a good way to target all different document varieties without having to
+explicitly specify them one by one.
+
+A couple of different approaches can be used to implement this:
+
+1) A hidden ``_document`` column can be added for purposes of Postgres-backed
+   FTS functionality. This makes it possible to resolve all the nuances in the
+   index specification and provide a uniform way of accessing the searchable
+   parts of the documents for FTS functions. The downside is that this is
+   duplicating the data that's already present as actual properties and
+   indexes.
+2) Expand a single search call into several calls, each of them targeting only
+   one table. This avoid data duplication, but is much harder to implement.
+
+The ``DocVector`` type is needed to declare the signatures of special
+functions like ``weight`` and ``language``, but is never meant to be used
+directly in queries. In fact, in all likelihood, it may never have any
+instances of actual values, because these values are used exclusively by the
+compiler and generally decomposed into their individual components and then
+the components are compiled (often as literals) into the specific underlying
+indexes.
 
 
 Query DSL
@@ -172,7 +407,7 @@ We will follow the format similar to Google search queries:
 - Terms prefixed by ``-`` are *excluded* terms and they must not appear in the
   matching document at all.
 - ``OR`` may appear between any terms. It doesn't affect any *acceptable*
-  terms, but if it downgrades any adjacent *highly desirable* terms to be now
+  terms, but it downgrades any adjacent *highly desirable* terms to be now
   *acceptable*. When appearing next to an *excluded* term, it makes that
   exclusion optional (which usually negates its usefulness).
 - ``AND`` may appear between any terms. It doesn't affect any *highly
@@ -191,14 +426,14 @@ For example:
   the fox`` is a much better match (more matched terms), which should be
   reflected in the rankings.
 - The search string ``"quick brown" fox jumps`` indicates that the document
-  must contain the phrase "quick brown" and at least one of the words "fox"
+  must contain the phrase "quick brown" and possibly some of the words "fox"
   and "jump" (or their variants). So ``the quick brown dog jumps over the
   fox`` is a valid match, but not ``the fox is quick and brown`` (phrase not
   matched).
 - The search string ``quick AND brown fox jumps`` indicates that the document
-  must contain the words "quick" and "brown" and at least one of "fox" or
-  "jump". Thus ``the fox is quick and brown`` is a valid match and so is
-  ``jump to the quick recipe for brown sugar``.
+  must contain the words "quick" and "brown" and and possibly some of the
+  words "fox" and "jump". Thus ``the fox is quick and brown`` is a valid match
+  and so is ``jump to the quick recipe for brown sugar``.
 
 To map this kind of search query to Postgres backend ``websearch_to_tsquery``
 can be used. The main caveat might be that each term is linked with ``&`` in
@@ -223,200 +458,12 @@ As a general rule FTS implementation will adhere to the above rules on
 best-effort basis. The specifics of each backend may affect how strict are the
 matches and phrases.
 
-Indexing
---------
-
-A big part of efficient FTS is having a good index on the fields that need to
-be searched. It is not strictly speaking necessary, but is often desirable.
-
-We assume that fine-tuning of the FTS implementations will be done by some
-separate configuration that also allows to select which FTS implementation to
-use. All we need to specify in the schema is that the particular properties
-need to be indexed for FTS::
-
-  index on ( <index-expr> )
-  [ except ( <except-expr> ) ]
-  [ using fts ]
-  [ "{" annotation-declarations "}" ] ;
-
-The ``<index-type>`` specifies that this is an FTS index as opposed to the
-default EdgeDB index.
-
-One important parameter of FTS is *language*, so we need a way to specify that
-when creating an index. We can do that with a special annotation::
-
-  abstract annotation fts::language;
-
-It seems that requiring to repeat this annotation for each index would be
-burdensome, so ideally it should be possible to set it at the type level as
-well as at the index level.
-
-Postgres passes the language as part of the index configuration: ``CREATE
-INDEX pgweb_idx ON pgweb USING GIN (to_tsvector('english', body));``.
-
-Elasticsearch has language-specific analyzers which can be used in the mapping corresponding to a given index.
-
-Algolia has an ``indexLanguages`` setting for its indexes.
-
-Typesense does not appear to have any language-specific index settings.
-
-Additionally there's a common need to index prefixes to facilitate
-prefix-based searches (such as for autocomplete). This can be accomplished by
-adding an annotation to the index::
-
-  type Post {
-    annotation fts::language := 'English';
-
-    required property title -> str;
-    index on (.title) using fts {
-      annotation fts::index_prefixes := 'true';
-    }
-
-    required property content -> str;
-    index on (.content) using fts;
-  }
-
-Setting up a prefix-based index, wouldn't really do much for Postgres.
-
-In Elasticsearch that would translate into ``index_prefixes`` with default
-minimum and maximum prefix values.
-
-In Algolia prefix searches are by default enabled for all, but can be disabled
-via ``disablePrefixOnAttributes``, which would correspond to not turning on
-``fts::index_prefixes``.
-
-In Typesense prefix searching is entirely controlled by the query and no
-special index settings are necessary one way or another, much like in
-Postgres.
-
-In general, index annotations may be used by some of the specific FTS
-implementations to further tweak how those indexes.
-
-
-Boosting results
-----------------
-
-Often in FTS matches in different fields have different relevance. A system
-that boosts some results ranking is therefore needed to account for this in
-EdgeDB. However, the system of weights/boosts is implemented very differently
-across the various FTS engines and these differences are not necessarily easy
-to reconcile. In particular, some FTS systems may have limited number of boost
-levels. We therefore would need to map the boosts as specified in EdgeDB
-schema as best we can to the specific backend.
-
-The boost value is basically a hint of how much search matches in a certain
-field should be prioritized compared to other fields. This value can be
-specified by adding an annotation to the relevant properties::
-
-  type Post {
-    annotation fts::language := 'English';
-
-    required property title -> str;
-    index on (.title) using fts {
-      annotation fts::index_prefixes := 'true';
-    }
-    annotation fts::boost := '2';
-
-    required property content -> str;
-    index on (.content) using fts;
-  }
-
-This feature is generally only relevant to whole-object searches. The details
-of how exactly the results get prioritized will depend on specific backends.
-
-
-Boost implementations
-^^^^^^^^^^^^^^^^^^^^^
-
-In Postgres there are only four weight categories (``A``, ``B``, ``C`` and
-``D``), but they can be assigned arbitrary numerical weight values for
-individual queries.
-
-In Elasticsearch ``boost`` is part of the query parameters and can be
-specified on a per-field basis when performing a ``match``::
-
-  GET /_search
-  {
-    "query": {
-      "bool": {
-        "should": [
-          { "match": {
-              "title":  {
-                "query": "War and Peace",
-                "boost": 2
-          }}},
-          { "match": {
-              "author":  {
-                "query": "Leo Tolstoy",
-                "boost": 2
-          }}},
-          { "bool":  {
-              "should": [
-                { "match": { "translator": "Constance Garnett" }},
-                { "match": { "translator": "Louise Maude"      }}
-              ]
-          }}
-        ]
-      }
-    }
-  }
-
-In Algolia custom ranking can be based on just arbitrary attributes, but
-rather than serving as a rank multiplier it instead serves as a sorting
-criterion when matches are found.
-
-Typesense has a ``query_by_weights`` option where weights are in the 0-127
-range, which can be used together with ``query_by`` option that specifies
-fields.
-
-What this seems to suggest is that we map boost values to the specific
-underlying implementation on a best effort basis. The idea is that boosts are
-approximate hints in general and so being treated in a fuzzy manner should be
-acceptable in practice for most applications.
-
-Consider this example with just 2 boosted properties::
-
-  type Post {
-    required property title -> str {
-      annotation fts::boost := '7';
-    }
-
-    required property content -> str {
-      annotation fts::boost := '2.3';
-    }
-  }
-
-The Postgres FTS implementation can then assign categories ``A`` and ``B`` to
-the 2 properties and specify the following weight array for searches: ``{0, 0,
-2.3, 7}``. This should produce the desired effect of ranking matches in the
-``title`` proportionately higher than matches in ``content``.
-
-Elasticsearch backend might instead normalize these weights to fit the 0-10
-integer range and internally use ``10`` and ``3`` (that's 10 * 2.3 / 7 rounded
-to closest integer) instead. It's not an exact weight proportion, but very
-close in practice.
-
-Algolia can use the values directly for custom ranking.
-
-Typesense can add ``query_by: title, content`` and ``query_by_weights: 7,
-2.3`` to the search queries on this object type.
-
-In a situation when there are more properties with distinct weights in the
-schema than the particular FTS engine supports we can then normalize the
-schema weights to the closest available weight that the engine supports.
-
-In case of Elasticsearch this would still be the same process as demonstrated
-above for 2 weights. In the case of Postgres, the process would involve
-identifying 4 clusters based on how far the given weights are from each other
-and then using an average in each group.
-
 
 Backwards Compatibility
 =======================
 
-There's some small chance of a name clash between an annotation used for FTS
-purposes and an existing annotation. This is mostly mitigated if all the FTS
-stuff resides in its own module.
+There are no backwards compatibility issues because we now have nested
+modules.
 
 
 Security Implications
@@ -428,4 +475,58 @@ There are no security implications.
 Rejected Alternative Ideas
 ==========================
 
-. . .
+We change the return of ``match`` function from FTSResult to a named tuple.
+This simplifies the spec and implementation without loss of functionality.
+
+We rejected the idea of using annotations for specifying the FTS language
+settings. This is due to the fact that it's difficult for functions to
+properly interface with that and it may result in unnecessary compiler-level
+magic.
+
+In general using annotations for fine-tuning FTS functionality impacts the
+complexity of the implementation potentially requiring recompiling any user
+functions that actually use FTS functionality inside of them. So, at least for
+the moment, this is undesirable.
+
+Rename result "boost" into "weight" and make it part of the function signature
+rather than an annotation that is magically picked up by the compiler.
+Additionally, make the valid range of "weight" to be [0, 1] rather than being
+arbitrary and relying on automatic scaling of these values relative to each
+other. The benefit of the fixed valid range is that it makes it more clear
+whether a particular "weight" value is large or small without needing a larger
+context.
+
+The search functions only take objects, not arbitrary ``str`` expressions.
+This means that we sacrifice flexibility of arbitrary searches for not having
+to worry whether the search expression actually matches the index expression
+and therefore whether the FTS index is going to be actually used.
+
+We rejected the ``test`` and ``match`` function duality because they are
+low-level and hard to use with filters and pagination, while still using the
+index efficiently. In addition boolean ``test`` seems to be a very limited in
+terms of usefulness as compared to ``match`` which allows ranking results. A
+single ``search`` function can definitely perform the duties of both of them.
+Given that we no longer allow searching arbitrary strings and completely rely
+on indexes to mark the parts of documents that are subject to FTS, the niche
+usefulness of ``test`` is further reduced.
+
+We rejected element-wise ``search`` in favor of a function operating on a set
+of objects. This approach is in line with the general operation flow in
+EdgeDB, where a query is a pipeline that processes a set gradually
+transforming it into the result. Having this as a set function makes it less
+awkward for the user to associate ranking and the actual objects and then
+filter based on that, by removing the necessity for the user to manually
+inject the ranking into the object shape, in order to filter and paginate
+based on that. Instead the user now applies the search function to the desired
+set of objects and has an annotated result set ready for filtering and
+pagination.
+
+The ``language`` parameter should not be omitted from search functions because
+there might be multiple indexed languages and the backend needs to know which
+one the query targets (and therefore which stemmer to use, etc.).
+
+We rejected ``set of`` documents parameter for the search function, largely
+because it's harder to implement and we don't rely of operating on a set of
+objects. We considered making the ``search`` function return an *ordered* set
+or results, but in the end opted out of it and thus we no longer need this
+function to operate on sets.
