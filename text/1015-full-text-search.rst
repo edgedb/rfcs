@@ -84,30 +84,25 @@ expressions. The type being opaque makes it possible to add more FTS functions
 that affect how the string is interpreted without having to change all the
 signatures.
 
-This processed document type and a couple of functions that use it are::
+This processed document type and a function that use it are::
 
-  type fts::DocVector {
+  type fts::document {
     # This is hidden implementation, so it's more of a concept
     # than an actual object type. Under the hood it might be a
     # record or not even have instances at all (see Implementation).
-    required document: str;
-    language: str;
-    weight_category: str;
   }
 
-  function fts::language(doc: str, lang: str) -> fts::DocVector
-  function fts::weight(doc: str, category: str) -> fts::DocVector
+  fts::with_options(
+    text: str,
+    named only language: anyenum,
+    named only weight_category: optional fts::Weight = fts::Weight.A,
+  ) -> fts::document
 
-  # Both functions can take a str or DocVector so that they can be
-  # applied in arbitrary order
-  function fts::language(doc: fts::DocVector, lang: str) -> fts::DocVector
-  function fts::weight(doc: fts::DocVector, category: str) -> fts::DocVector
-
-Since ``DocVector`` is opaque and is not valid in regular queries, we should
+Since ``document`` is opaque and is not valid in regular queries, we should
 really make it some sort of "internal" or "system" type. It doesn't need to be
-part of schema introspection and likely will only appear as part of signatures
-of the special index functions. Incidentally, these special functions also
-don't need to be exposed to introspection.
+part of schema introspection and likely will only appear as part of signature
+of the special index function. Incidentally, this special function also
+doesn't need to be exposed to introspection.
 
 *Language* is an important part of FTS and we generally assume it will
 be part of the ``index`` declaration as well as of the search functions.
@@ -121,6 +116,18 @@ corresponding to a given index.
 Algolia has an ``indexLanguages`` setting for its indexes.
 
 Typesense does not appear to have any language-specific index settings.
+
+We define some built-in enums to denote available languages. The most general
+is ``fts::Language`` and it is listing languages that are supported across
+backends. There are also backend-specific enums such as ``fts::PGLanguage``
+and ``fts::ElasticLanguage``. We can add more as needed. The ``fts::Language``
+contains ISO 639-3 language codes or special codes prefixed with ``edb_`` for
+languages that don't map neatly onto ISO 639-3, such as ``edb_Brazilian`` and
+``edb_ChineseJapaneseKorean``.
+
+The ``fts::Weight`` enum is used to specify weight categories::
+
+  scalar type fts::Weight extending enum<A, B, C, D>;
 
 In order to simplify FTS query language, we will use a ``str`` to represent
 queries rather than introducing a new scalar type. This string is expected to
@@ -136,13 +143,13 @@ particular parameters that are configurable for that implementation (which
 could be some backend-specific JSON config, etc.). The general index
 definition, however has no parameters and will be of the following form::
 
-  abstract index fts::textsearch()
+  abstract index fts::index()
 
 Additionally there's sometimes a need to index prefixes to facilitate
 prefix-based searches (such as for autocomplete). This can be accomplished by
 adding a parameter to the ``abstract index`` definition::
 
-  abstract index fts::textsearch(
+  abstract index fts::index(
       named only index_prefixes: bool = false
   )
 
@@ -179,57 +186,54 @@ For example::
       body: str;
       internal: str;
 
-      index fts::textsearch on (
-        fts::language(.title, 'english'),
-        fts::language(.body, 'english'),
-      );
+      index fts::index on ((
+        fts::with_options(.title, language := fts::Language.eng),
+        fts::with_options(.body, language := fts::Language.eng),
+      ));
   }
 
 The above schema declares that only ``title`` and ``body`` properties are
 subject to FTS functions, while the ``internal`` property will be ignored by
-searches. These properties are wrapped in a ``language`` special function that
-specifies the language of the corresponding parts (which affects the
-indexing).
+searches. These properties must be wrapped in a ``with_options`` special
+function that specifies the language of the corresponding parts (which affects
+the indexing).
 
-In order to add weights, we use the other special function which can only
-appear in index specification::
+In order to add weights, we pass ``weight_category`` to
+``fts::with_options``special function::
 
   type Document {
       title: str;
       body: str;
       internal: str;
 
-      index fts::textsearch on (
-        fts::weight(fts::language(.title, 'english'), 'A'),
-        fts::weight(fts::language(.body, 'english'), 'B'),
+      index fts::index on (
+        fts::with_options(
+          .title,
+          language := fts::Language.eng,
+          weight_category := fts::Weight.A
+        ),
+        fts::with_options(
+          .body,
+          language := fts::Language.eng,
+          weight_category := fts::Weight.B
+        ),
       );
   }
 
-The ``fts::weight`` function cannot be used in regular queries (because its
-return type is not supposed to be exposed to the user), but in index
-specification it associates a weight group with a particular indexed
-expression (typically just a property). Using strings to denote weight groups
-makes it less likely that the users confuse the *group name* with the actual
-associated weight *value*.
+In index specification we associate a weight group with a particular indexed
+expression (typically just a property). Using ``fts::Weight`` enum to denote
+weight groups makes it less likely that the users confuse the *group name*
+with the actual associated weight *value*.
 
 The most basic naming scheme for weight groups could be similar to Postgres:
-just using the alphabet starting with 'A'. We can have more than 4 groups,
-though for the general case. If the backend supports fewer groups than
-indicated by index specification, we simply use as many groups as we can
-starting with 'A' and merge the rest into the last valid group ('D' for
-Postgres).
-
-In principle the group names can be generalized to be any ``str`` and the
-lexicographical order can then be used to determine the relative group order
-(for purpose of picking group weights). This would allow using Postgres-style
-groups 'A', 'B', 'C', 'D' or give groups more descriptive names like '1 - most
-relevant', '2 - regular', '3 - marginal'.
+just using the alphabet starting with 'A'. We can accommodate different number
+of groups in the future by adding backend-specific enums.
 
 
 Inheritance
 -----------
 
-Since ``fts::textsearch`` index is semantic and has effect on how FTS
+Since ``fts::index`` index is semantic and has effect on how FTS
 functions work, we cannot have multiple versions of this index defined on a
 single object type. So at most one FTS index can be defined on any type
 (subject to ``??`` once the extension enabling/disabling is implemented). In
@@ -241,7 +245,9 @@ For example::
 
   type Document {
       body: str;
-      index fts::textsearch on (fts::language(.body, 'english'));
+      index fts::index on (
+        fts::with_options(.body, language := fts::Language.eng)
+      );
   }
 
   type InternalDoc extending Document {
@@ -250,12 +256,14 @@ For example::
 
   type TitledDoc extending Document {
       title: str;
-      index fts::textsearch on (fts::language(.title, 'english'));
+      index fts::index on (
+        fts::with_options(.title, language := fts::Language.eng)
+      );
   }
 
 The ``InternalDoc`` type has no FTS index of its own, so it inherits the index
 from ``Document``. Thus only the ``.body`` is indexed. Conversely,
-``TitledDoc`` defines a new ``fts::textsearch`` index on ``.title``, but the
+``TitledDoc`` defines a new ``fts::index`` index on ``.title``, but the
 ``body`` property would no longer be indexed for ``TitledDoc`` objects.
 
 The reason for this design is that we're limited to having no more than one
@@ -281,29 +289,26 @@ addition to filtering, the results may be annotated with relevance (ranked)
 and potentially with highlighted matches::
 
   function std::fts::search(
-      doc: anyobject,
+      object: anyobject,
       query: str,
-      named only language: str,
+      named only language: str = <str>fts::Language.eng,
       named only weights: optional array<float64> = {},
-      named only rank_opts: optional str = 'default',
-      named only highlight_opts: optional str = {}
   ) -> optional tuple<
     object: anyobject,
-    rank: float64,
-    highlights: array<str>
+    score: float64
   >
 
-The ``doc`` input provides the object that should be searched. The
+The ``object`` input provides the object that should be searched. The
 details of which properties should be searched and other FTS parameters will
 be provided by the FTS index on the specified type. Searching an unindexed
 type should simply produce no matches (resulting in an ``{}``).
 
 The ``language`` parameter indicated which language the query is using and
 therefore allows to target only the relevant documents if there are multiple
-languages.
-
-If ranking was requested (which is the default behavior), then the value will
-be written in ``rank``, otherwise the value ``0`` is used.
+languages. In order to simplify the search function and make it play nice with
+Postgres indexes, we will use a ``str`` to represent languages instead of the
+enum. This string is expected to be representing the ``fts::Language`` enum
+values, though.
 
 The optional ``weights`` array provides relevance multipliers corresponding to
 each of the weight groups indicated by the FTS index. The weights have to be
@@ -315,22 +320,8 @@ values provided explicitly overrides the corresponding defaults. This means
 that first 4 groups would by default have the following weights: ``1``,
 ``0.5``, ``0.25``, ``0.125``. On the other hand if the ``match`` was called
 with ``weights := [1, 0.7]`` as an argument, then the first 4 groups would
-have these weights: ``1``, ``0.7``, ``0.25``, ``0.125``. In order to only
-search the first 2 weight groups explicit weights of ``0`` need to be
-specified for the other groups: ``weights := [1, 0.7, 0, 0]``.
-
-If highlighting the matched text was requested, then the appropriate value
-will be written in ``highlights`` array. The array is needed in case the
-matches are highlighted separately (e.g. only the matched words are returned,
-omitting the surrounding text). The array will be empty if highlighting was
-not requested.
-
-The ``rank_opts`` and ``highlight_opts`` can potentially be backend-specific,
-however either one of them can take the value of ``{}`` with the meaning that
-ranking/highlighting of the results is not necessary. Both of them should also
-always accept ``default`` as a valid argument indicating that
-ranking/highlighting of the results should be done in some basic manner
-(typically using some faster method).
+have these weights: ``1``, ``0.7``, ``0``, ``0``. So only the first 2 groups
+would be searched.
 
 It is worth considering implementing a search function that returns a free
 object instead of the named tuple (with the same structure). A free object
@@ -346,16 +337,13 @@ the actual FTS implementation may need a different call to be compiled to
 access the backend::
 
   function std::fts::autocomplete(
-      doc: set of anyobject,
+      object: set of anyobject,
       query: str,
       named only language: str,
       named only weights: optional array<float64>,
-      named only rank_opts: optional str = 'default',
-      named only highlight_opts: optional str = {}
   ) -> optional tuple<
     object: anyobject,
-    rank: float64,
-    highlights: array<str>
+    rank: float64
   >
 
 
@@ -380,13 +368,12 @@ A couple of different approaches can be used to implement this:
 2) Expand a single search call into several calls, each of them targeting only
    one table. This avoid data duplication, but is much harder to implement.
 
-The ``DocVector`` type is needed to declare the signatures of special
-functions like ``weight`` and ``language``, but is never meant to be used
-directly in queries. In fact, in all likelihood, it may never have any
-instances of actual values, because these values are used exclusively by the
-compiler and generally decomposed into their individual components and then
-the components are compiled (often as literals) into the specific underlying
-indexes.
+The ``document`` type is needed to declare the signatures of special function
+like ``with_options``, but is never meant to be used directly in queries. In
+fact, in all likelihood, it may never have any instances of actual values,
+because these values are used exclusively by the compiler and generally
+decomposed into their individual components and then the components are
+compiled (often as literals) into the specific underlying indexes.
 
 
 Query DSL
@@ -530,3 +517,16 @@ because it's harder to implement and we don't rely of operating on a set of
 objects. We considered making the ``search`` function return an *ordered* set
 or results, but in the end opted out of it and thus we no longer need this
 function to operate on sets.
+
+Replace ``fts::weight`` and ``fts::language`` special functions with a single
+``fts::with_options`` special function. The ``weight_category`` and
+``language`` are just named only arguments for this function. This is to avoid
+unnecessary nesting when supplying both weight and language.
+
+For the moment we don't include highlighted text in the search results. We
+don't yet have a clear general way of formatting that and using HTML-like
+strings seems very hacky.
+
+Use an ``fts::Language`` and ``fts::Weight`` enums instead of ``str`` to limit
+what languages and weights are supported. We can customized and extended these
+enums if needed in the future.
