@@ -160,18 +160,3 @@ calls to EdgeDB-defined functions and operators as they are resolved
 currently.
 
 That *should* be possible, although I am not certain.
-
-*************************
- Backwards compatibility
-*************************
-
-The proposal is fully backwards compatible.
-
-*********************
- Implementation plan
-*********************
-
-The proposal can be implemented in stages. E.g. EdgeDB version 3.0 will
-have the basic ``*`` and ``**`` operators supported in shapes, while
-EdgeDB 4.0 or later can have the proposed type language extensions
-implemented.
