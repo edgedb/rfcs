@@ -2,7 +2,7 @@
 
    Status: Draft
    Type: Feature
-   Created: 2023-01-25
+   Created: 2024-01-23
    Authors: Aljaž Mur Eržen <aljaz@edgedb.com>
 
 #######################################
