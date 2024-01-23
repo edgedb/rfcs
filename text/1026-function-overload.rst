@@ -92,15 +92,6 @@ of functions that take scalar types does not work correctly. This means
 that this overloading behavior cannot used outside of EdgeDB-defined
 functions.
 
-   ..
-      create scalar type A extending str;
-      create scalar type B extending A;
-      create function foo(a: str) -> str using ("matched str");
-      create function foo(a: A) -> str using ("matched A");
-      select foo(<str>"hello"); # error: please disambiguate between the two function
-      select foo(<A>"hello");   # matched A
-      select foo(<B>"hello");   # internal server error: function edgedbpub."..." is not unique
-
 **********
  Proposal
 **********
@@ -109,21 +100,23 @@ functions.
 
    .. code::
 
-          CREATE FUNCTION std::contains
-              (haystack: std::str, needle: std::str) -> std::bool using (...) OR
-              (haystack: std::bytes, needle: std::bytes) -> std::bool using (...) OR
-              (haystack: array<anytype>, needle: anytype) -> std::bool using (...);
+      CREATE FUNCTION std::contains
+          (haystack: std::str, needle: std::str) -> std::bool using (...) OR
+          (haystack: std::bytes, needle: std::bytes) -> std::bool using (...) OR
+          (haystack: array<anytype>, needle: anytype) -> std::bool using (...);
 
-      Here, all implementations must be defined in a single declaration.
-      Since they have an inherent order, this order can be used during call resolution.
-      To resolve a call, we first find the single definition matching in name.
-      Then we traverse the list of implementations from first to last and compare their signature to the call.
-      First signature that matches is resolved to, regardless of potential match in the following implementations.
+   Here, all implementations must be defined in a single declaration.
+   Since they have an inherent order, this order can be used during call
+   resolution. To resolve a call, we first find the single definition
+   matching in name. Then we traverse the list of implementations from
+   first to last and compare their signature to the call. First
+   signature that matches is resolved to, regardless of potential match
+   in the following implementations.
 
-      Individual implementations in the list would be allowed to define any number of parameters with arbitrary types.
+   Individual implementations in the list would be allowed to define any
+   number of parameters with arbitrary types.
 
 #. Add similar syntax for operators.
-
 #. Forbid implicit overloading of functions and operators.
 
 ***************
