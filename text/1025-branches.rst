@@ -121,7 +121,7 @@ The old ``drop`` subcommand works pretty much same as before.
 The old ``wipe`` subcommand may still be relevant for resetting a particular
 branch.
 
-There must be a new ``set`` sub-command that allows changing the default
+There must be a new ``switch`` sub-command that allows changing the default
 branch to connect to by updating the ``edgedb.auto.toml`` file. We can also
 offer a post-checkout git hook to update the branch in ``edgedb.auto.toml``
 when switching git branches. The mapping between git and EdgeDB branches can
@@ -129,10 +129,80 @@ be maintained in the ``edgedb.auto.toml`` file as well. When switching EdgeDB
 branches this way we should print a message with the new branch name. By
 default, if a git branch is not explicitly mapped to any branch in
 ``edgedb.auto.toml`` we should use the ``main`` branch. The user can then
-call ``edgedb branch set`` to change the git/EdgeDB branch association.
+call ``edgedb branch switch`` to change the git/EdgeDB branch association.
 
 There must be a new ``edgedb branch rename <oldname> <newname>`` command in
 order to be able to rename branches.
+
+
+Rebasing Branches
+-----------------
+
+We need to be able to rebase and merge database branches. This overlaps a lot
+with the scope of the ``migration`` commands.
+
+When rebasing one branch on top of another we can use introspection to compare
+the respective migration histories and find the point where they diverge.
+Afterwards we can try to apply a batch of new migration to the existing branch
+and if there are no issues perform a "fast-forward" rebase.
+
+In order to minimize the hassle of rebasing the git branches corresponding to
+database branches we need to give migration files names that are distinct in
+these branches so that git does not attempt to merge the file contents. We can
+reuse the (shortened) migration hash for this purpose. The goal here is to
+differentiate migration files so that when parallel VCS branches get merged
+the migrations have a high chance to stay in their separate files rather than
+being merged into a single file that causes conflicts. We still want to retain
+the numeric indexes to make it easier for a human to view the migration
+history. In order to update the migrations from the old naming format to this
+new one we want to add ``edgedb migration format --upgrade`` command (assuming
+that we will have other formatting options later on). If our CLI tools detect
+that the migration files are using the old format they should suggest running
+``edgedb migration format --upgrade`` in order to proceed with any other
+migration or branch commands.
+
+At first rebasing one branch on top of another is the main workflow that we
+offer for managing branches and merging them back together. Eventually we may
+be able to expand the options to include merges, such as diamond or octopus
+merges where the order in which migrations were applied is not as strictly
+defined. This can only work with the subset of migration for which we can
+prove that the order does not affect semantics.
+
+Here's an example of how the rebase workflow is expected to work using "main"
+and "feature" branches:
+
+1) Create a new "feature" VCS branch (a clone of the "main" branch) and a
+   corresponding "feature" EdgeDB branch.
+
+2) Work on the "feature" branch, add migrations, etc.
+
+3) When it is time to merge the feature work back into the main branch we want
+   to arrange things so that the "feature" branch is in a state that is a
+   simple fast-forward w.r.t the "main" branch.
+
+4) In order to achieve the above state we need to make sure "main" code branch
+   as well as EdgeDB branch are both up-to-date.
+
+5) Then we want to rebase the "feature" branch code on top of the "main"
+   branch code.
+
+6) After that we need to replicate the same rebase operation with the EdgeDB
+   branch. Our CLI tools may need to first clone the "main" branch with the
+   data into a "temp" branch. Then we can introspect the migration histories
+   of "temp" and "feature" branches so that we can establish where they
+   diverge. Take all the divergent migrations from the "feature" branch and
+   apply them to the "temp" branch. If the operation is successful, drop the
+   "feature" branch and rename "temp" to "feature". We now have successfully
+   rebased "feature" branch on top of "main".
+
+7) Since the state of "feature" is now a straightforward fast-forward w.r.t.
+   the "main" branch we can finally merge "feature" back into main in VCS and
+   then merge the EdgeDB branch as well (or rename "feature" EdgeDB branch
+   into "main", if the old branch is no longer needed).
+
+In our CLI tools we need a ``edgedb branch rebase`` command to perform step 6)
+and also a ``edgedb branch merge`` command to perform a fast-forward merge (by
+copying the migration history and applying migrations).
 
 
 Implementation
@@ -156,27 +226,6 @@ space/permission issues.
 
 We need to start bundling ``pg_dump`` and ``pg_resotre`` tools so that we can
 run them ourselves when we need them for handling new branches.
-
-
-Rebasing Branches
------------------
-
-We need to be able to rebase and merge database branches. This overlaps a lot
-with the scope of the ``migration`` commands.
-
-When rebasing one branch on top of another we can use introspection to compare
-the respective migration histories and find the point where they diverge.
-Afterwards we can try to apply a batch of new migration to the existing branch
-and if there are no issues perform a "fast-forward" rebase.
-
-In order to minimize the hassle of rebasing the git branches corresponding to
-database branches we need to give migration files names that are distinct in
-these branches so that git does not attempt to merge the file contents. This
-may be a (short) hash derived from the branch name or even from the migration
-itself. The goal here is to differentiate migration files so that when
-parallel VCS branches get merged the migrations have a high chance to stay in
-their separate files rather than being merged into a single file that causes
-conflicts.
 
 
 Future Considerations
