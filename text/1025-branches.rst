@@ -88,17 +88,16 @@ mismatches in migrations.
 Project and CLI Integration
 ---------------------------
 
-Currently the project configuration file ``edgedb.toml`` does not have to
-specify the default *database* it connects to. We  can add a
-``edgedb.auto.toml`` config file that can be used to supplement and override
-the main ``edgedb.toml`` config. This new file is not intended to be committed
-to any VCS repository and kept strictly local (as the name implies). This way
-the alternative database branch will not accidentally be committed to the
-wrong VCS branch. All the EdgeDB clients will have to be upgraded so that they
-can look up both ``edgedb.toml`` and ``edgedb.auto.toml`` files.
+Currently the rest of our tools rely on ``$CONFIG/credentails`` to find
+default credential settings for projects. That includes the "database" (which
+is same as "branch" in this update) to connect to. We should keep the internal
+name "database" for the branch field for a certain deprecation period to make
+sure we give some time for the rest of the clients that use the
+``$CONFIG/credentails`` to catch up. Our CLI should accept "branch" instead of
+"database", but not both. Once the deprecation period is over we can force the
+``$CONFIG/credentails`` files to be converted to use "branch" exclusively.
 
-A new project should ask the user for the branch name defaulting to "main". We
-should also suggest adding ``edgedb.auto.toml`` to ``.gitignore``.
+A new project should ask the user for the branch name defaulting to "main".
 
 The ``database`` CLI commands should be deprecated and new ``branch`` commands
 introduced instead.
@@ -106,9 +105,10 @@ introduced instead.
 ``edgedb branch create`` command options:
 
 * It must have the ``--from <oldname>`` option. If this option is omitted the
-  current branch specified in the ``edgedb.auto.toml`` file is used as the
-  "from" branch. After the branch is created, the ``edgedb.auto.toml`` file
-  is updated to use the new branch as the connection default.
+  current branch specified in the ``$CONFIG/credentails`` is used as the
+  "from" branch. After the branch is created, the ``$CONFIG/credentails``
+  file corresponding to the project is updated to use the new branch as the
+  connection default.
 
 * It must have the ``--empty`` option. If specified, this is equivalent to
   running ``create empty branch <newname>`` DDL command.
@@ -122,17 +122,23 @@ The old ``wipe`` subcommand may still be relevant for resetting a particular
 branch.
 
 There must be a new ``switch`` sub-command that allows changing the default
-branch to connect to by updating the ``edgedb.auto.toml`` file. We can also
-offer a post-checkout git hook to update the branch in ``edgedb.auto.toml``
-when switching git branches. The mapping between git and EdgeDB branches can
-be maintained in the ``edgedb.auto.toml`` file as well. When switching EdgeDB
-branches this way we should print a message with the new branch name. By
-default, if a git branch is not explicitly mapped to any branch in
-``edgedb.auto.toml`` we should use the ``main`` branch. The user can then
-call ``edgedb branch switch`` to change the git/EdgeDB branch association.
+branch to connect to by updating the project ``$CONFIG/credentails``. We can
+also offer a post-checkout git hook to update the branch in
+``$CONFIG/credentails`` when switching git branches. The mapping between git
+and EdgeDB branches can be maintained in the
+``$CONFIG/projects/{project}/branches.toml`` file as well. When switching
+EdgeDB branches this way we should print a message with the new branch name.
+By default, if a git branch is not explicitly mapped to any branch in
+``branches.toml`` we should use the ``main`` branch. The user can then call
+``edgedb branch switch`` to change the git/EdgeDB branch association.
 
 There must be a new ``edgedb branch rename <oldname> <newname>`` command in
 order to be able to rename branches.
+
+The branch name must appear in ``edgedb project info`` output (both regular
+and ``--json`` vesrion). We should also add ``edgedb branch info`` command to
+show just the current branch name (the command should accept an instance name
+or use the project default).
 
 
 Rebasing Branches
@@ -255,18 +261,28 @@ commands will have an equivalent new command:
 Project Config
 --------------
 
-All the EdgeDB clients will have to be upgraded so that they can look up both
-``edgedb.toml`` and ``edgedb.auto.toml`` files. An older client will simply
-ignore the ``edgedb.auto.toml`` which should be fine for any deployment
-environment since we're assuming that these alternative branches are used for
-development rather than deployment.
+We decided that keeping the branch information in the local
+``$CONFIG/credentials/{instance}.json`` file is desirable to maintain backwards
+compatibility with the existing bindings. This will provide an opportunity to
+gradually deprecate the old "database" field in favor of "branch" field over
+some time and let the bindings be updated.
 
-When the ``edgedb.toml`` file does not explicitly specify the branch/database
-(and when ``edgedb.auto.toml`` is missing) the default branch name to connect
-to depends on the EdgeDB server version:
+The in the first step of this transition CLI branch tools should still use the
+"database" field (when creating the new credentials), but also accept a
+"branch" field instead (and produce an error if both are present). During this
+stage we expect to update the bindings to also expect "branch" as a valid
+alias for "database".
 
-* EdgeDB 5+ should assume "main" branch as default
-* EdgeDB 4.x and prior should assume "edgedb" branch as default
+The second stage in deprecating "database" field in the local credentials
+would involve our CLI converting the old files in order to replace "database"
+with "branch" and informing the users that they should ensure that their
+bindings are up-to-date as well.
+
+The ``edgedb project init`` and ``edgedb branch`` commands should record the
+current branch in the local config file.
+
+Starting with EdgeDB 5.0 the ``edgedb project init`` command should assume
+(and record) "main" as the default branch name as opposed to "edgedb".
 
 
 Implementation plan
@@ -292,26 +308,18 @@ developers.
 Local Config
 ------------
 
-We decided that storing the current branch in ``edgedb.toml`` directly is
-problematic since it's way too easy to accidentally commit that into the wrong
-VCS branch. So the solution is to use a special ``edgedb.auto.toml`` file
-that should not be committed (in fact it's recommended to add it to
-``.gitignore``).
+EdgeDB clients read the default connection information from the local config
+directory. We want to add the ability to switch branches to our tools by
+recording the current branch in ``$CONFIG/credentials/{instance}.json`` file.
+We keep the field "database" in that configuration file in order to be
+compatible with older bindings that expect that. This way older bindings would
+still be able to correctly connect to the right branch when ``edgedb branch
+switch`` command updates it. The bindings should accept "branch" as an alias
+for "database" (never both at the same time) and eventually discontinue the
+use of the old term "database" in the credentials file.
 
-This naming pattern was chosen to be similar to Postgres "auto" files. The
-alternative ``.local`` filename was rejected as this is not intended to be
-edited by the user directly, but rather is an autogenerated config.
-
-This file is easy to find so that the developers don't have to wonder where
-the configuration is coming from.
-
-We prefer the structure of ``.toml`` format as more human-friendly. We also
-don't want to introduce arcane environment variables.
-
-This also means that if we later decide to introduce a user-oriented
-``.local`` configuration file we can still do that and differentiate between
-user local config and autogenerated config that doesn't need to be committed
-into the VCS repository.
+The ``edgedb project init`` and ``edgedb branch`` commands should record the
+current branch in the local config file.
 
 VCS Integration
 ---------------
@@ -325,9 +333,9 @@ operate.
 A post-checkout git hook can help us switch EdgeDB branches in sync with
 checking out git branches. If we're able to detect when a new branch is
 created (so that previous branch SHA is the same as the new one) we can also
-add a record to ``edgedb.auto.toml`` associating the new git branch with the
+add a record to ``$CONFIG/projects/{project}/branches.toml`` associating the new git branch with the
 same EdgeDB branch as the old one. Conversely when switching to an existing
-git branch that doesn't appear in ``edgedb.auto.toml`` yet it is probably
+git branch that doesn't appear in ``branches.toml`` yet it is probably
 safer to assume "main" EdgeDB branch as apparently there was no specific need
 to create a separate EdgeDB branch for it before, so the changes probably
 don't affect the schema and the "main" branch should be fine to use.
