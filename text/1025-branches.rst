@@ -92,10 +92,10 @@ Currently the project configuration file ``edgedb.toml`` does not have to
 specify the default *database* it connects to. We  can add a
 ``edgedb.auto.toml`` config file that can be used to supplement and override
 the main ``edgedb.toml`` config. This new file is not intended to be committed
-to any VCS repository and kept strictly local (as the name implies). This way
-the alternative database branch will not accidentally be committed to the
-wrong VCS branch. All the EdgeDB clients will have to be upgraded so that they
-can look up both ``edgedb.toml`` and ``edgedb.auto.toml`` files.
+to any VCS repository and kept strictly local. This way the alternative
+database branch will not accidentally be committed to the wrong VCS branch. All
+the EdgeDB clients will have to be upgraded so that they can look up both
+``edgedb.toml`` and ``edgedb.auto.toml`` files.
 
 A new project should ask the user for the branch name defaulting to "main". We
 should also suggest adding ``edgedb.auto.toml`` to ``.gitignore``.
