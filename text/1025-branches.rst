@@ -116,6 +116,8 @@ introduced instead.
 * It should have the ``--copy-data`` option. By default a new branch copies
   schema only.
 
+* It should not switch the active branch to the newly created one.
+
 The old ``drop`` subcommand works pretty much same as before.
 
 The old ``wipe`` subcommand may still be relevant for resetting a particular
