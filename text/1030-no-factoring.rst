@@ -84,7 +84,7 @@ remains::
     db> select User { name := .first_name ++ ' ' ++ .last_name }
     {User {name: 'Peter Parker'}, User {name: 'Tony Stark'}}
 
-(And, of course, you `shouldn't have first_name and last_name
+(And, of course, you probably `shouldn't have first_name and last_name
 properties anyway
 <https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/>`_)
 
@@ -100,13 +100,31 @@ Language Design
 ---------------
 
 
+
+
 Implementation Concerns
 -----------------------
 
 The current implementation of path factoring is the source of
 *substantial* technical complexity in the EdgeDB implementation.
 Currently, path factoring is performed "on the fly" during the
-first compilation phase, from our AST to our IR
+first compilation phase, from our AST to our IR.
+
+The output of the EdgeQL->IR compilation phase is not just the main IR
+expression, but also a "scope tree" that contains scope nodes for each
+sub-scope and binding points for every path used.
+When a reference to a path is compiled, we attach it to the scope tree
+in the current sub-scope; as part of this process, we search for any
+prefix of the path that is "visible" elsewhere in the tree, and if so
+we attach the path to the common ancestor in the tree.
+
+Anything consuming IR must understand both the IR expressions
+themselves and the scope tree to interpret the meaning correctly.
+
+As mentioned above, the meaning of an expression can not be understood
+solely by analyzing the expression and its enclosing context
+Cardinality and multiplicity can not be inferred or checked until the
+full query is compiled.
 
 
 Specification
@@ -152,6 +170,9 @@ instead (if we wanted, we could drop it and require doing that)::
     default::User {names: {'Peter', 'Tony'}},
   }
 
+
+
+TODO: ORDER BY trouble.
 
 
 Backwards compatibility
