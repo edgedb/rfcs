@@ -99,7 +99,50 @@ concerns.
 Language Design
 ---------------
 
+The path factoring behavior is quite complex, and makes it difficult
+to understand the behavior of a query at a glance. Furthermore, it
+badly compromises several of the intended design principles of EdgeQL.
 
+EdgeQL aims to support a "top-to-bottom" reading, but path factoring
+means that code later in the query can fundamentally alter the
+meaning.
+
+Consider::
+
+    db> select (
+    ...   obj := {
+    ...     matching := (select User filter .name like <str>$pattern),
+    ...   },
+    ...   nickname := User.nickname,
+    ... )
+
+Here, the meaning of the free object being assigned to the ``obj``
+tuple field is completely changed by the presence of the reference to
+``User.nickname``. Without the reference, ``matching`` would infer as
+multi and would contain every matching object. With that reference,
+``matching`` infers as single and will contain the object referenced
+in the ``nickname`` field when it matches the pattern.
+
+This is weird, and violates the goal of supporting a "top-to-bottom"
+reading.
+
+Another (closely related) way to think of this problem is that it is a
+failure of compositionality. In a compositional language, the meaning
+of an expression ought to be understandable from the body of the
+expression and from its enclosing context of variable definitions
+alone. This is clearly not the case with path factoring, as path
+references in sibling (... and "distant cousin") expressions can
+fundamentally alter the meaning.
+
+Worse, there is not a clean way to "opt out" of path factoring in
+order to create a "fully compositional" expression. The ``DETACHED``
+keyword can be used, but that does too much: it discards the enclosing
+variable bindings as well.
+
+TODO: "cannot reference correlated set" and "changes the
+interpretation of ... elsewhere in the query" are bizarre error
+messages but I'm not sure if there is any message that would make
+users understand them
 
 
 Implementation Concerns
@@ -122,9 +165,22 @@ Anything consuming IR must understand both the IR expressions
 themselves and the scope tree to interpret the meaning correctly.
 
 As mentioned above, the meaning of an expression can not be understood
-solely by analyzing the expression and its enclosing context
-Cardinality and multiplicity can not be inferred or checked until the
-full query is compiled.
+solely by analyzing the expression and its enclosing context.  This
+means cardinality and multiplicity can not be inferred or checked
+until the full query is compiled. The parts of materialization that
+depend on computing visibility must also be deferred until the fully
+query is compiled, which causes many problems.
+
+Maintaining the correct path factoring and scoping during complex
+"desugaring" translations in the QL->IR compiler always substantially
+complicates things and has been a recurring source of bugs in casts
+and other places.
+
+Path factoring introduces substantial complexity in the IR->PG
+compiler.  In order to compile factored paths in the correct locations
+in the SQL query, we end up needing to "jump around" in the SQL
+tree. This makes following and understanding the flow of the IR->PG
+quite difficult at times.
 
 
 Specification
@@ -185,9 +241,23 @@ migration plan is crucial.
 Alternatives
 ============
 
-
 Frontloaded factoring
 ---------------------
+
+It may be possible to implement path factoring as a standalone pass,
+prior to main compilation. This would not address any of the language
+design issues of path factoring, but would retain backwards
+compatibility.
+
+It would allow us to remove most of the path-factoring induced
+complexity from other phases, and centralize it in one hopefully
+simpler phase.
+
+The formalism takes an approach similar to this, though there are a
+number of subtleties involved in extending it to the full language. It
+may wind up being necessary to also extract type checking as its own
+phase, prior to path factoring, which would make it a substantially
+more difficult project.
 
 Maintaining both options in the long term
 -----------------------------------------
