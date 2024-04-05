@@ -237,6 +237,28 @@ Backwards compatibility
 This change is explicitly not backwards compatible.  Therefore, a
 migration plan is crucial.
 
+Overview
+--------
+EdgeDB 6.0 allow opting in to the new behavior, while still supporting
+the old behavior fully.
+
+We will also provide an opt-in mode that produces an error (or a
+warning, if we have time to build a warning system) when we detect
+that a query might change its behavior under the new semantics.
+
+EdgeDB 7.0 will drop support for path factoring.  EdgeDB 6.0 will be
+an LTS release, so users will have a fair amount of time to get their
+migration in order. (I expect it will very simple for most users.)
+
+The RFC author, Sully, will be the 6.0 release manager.
+
+
+Details
+-------
+
+TODO: Exact details of the configuration mechanisms for the opt in?
+Future feature? Config values? Both?
+
 
 Alternatives
 ============
