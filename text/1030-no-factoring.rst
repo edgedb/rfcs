@@ -231,6 +231,12 @@ instead (if we wanted, we could drop it and require doing that)::
 TODO: ORDER BY trouble.
 
 
+Implementation
+==============
+
+
+
+
 Backwards compatibility
 =======================
 
@@ -256,8 +262,23 @@ The RFC author, Sully, will be the 6.0 release manager.
 Details
 -------
 
-TODO: Exact details of the configuration mechanisms for the opt in?
-Future feature? Config values? Both?
+We will introduce a new "future feature" named ``simple_scoping``
+along side a configuration setting also named ``simple_scoping``.
+The future feature presence will determine which behavior is used
+inside expressions within the schema, as well as serve as the default
+value if the configuration value is not set. The configuration setting
+will allow overriding the presence of absence of the feature.
+
+We will do the same with a ``warn_old_scoping`` flag that will produce
+an error when path factoring is depended upon.
+
+The CLI will put ``using feature simple_scoping;`` in new 6.x projects
+by default (like we did with ``nonrecursive_access_policies``).
+
+The rationale for this approach is that we need it to be configurable
+within the schema, in order to control the behavior within the schema
+itself. It is also important to be able to configure it on a session
+level, so that applications may be gradually migrated.
 
 
 Alternatives
