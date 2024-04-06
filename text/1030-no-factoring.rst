@@ -231,12 +231,6 @@ instead (if we wanted, we could drop it and require doing that)::
 TODO: ORDER BY trouble.
 
 
-Implementation
-==============
-
-
-
-
 Backwards compatibility
 =======================
 
@@ -279,6 +273,24 @@ The rationale for this approach is that we need it to be configurable
 within the schema, in order to control the behavior within the schema
 itself. It is also important to be able to configure it on a session
 level, so that applications may be gradually migrated.
+
+
+
+Implementation
+==============
+
+The implementation of ``simple_scoping`` is easy, and consists of
+wrapping paths in an extra fence inside the compiler when needed.
+
+The implementation of ``warn_old_scoping`` uses a similar trick, and
+some simple analyses.
+
+Eventually we'll want to start tearing out path factoring and taking
+advantage of the new simpler rules, which will be more involved but
+not on critical paths.
+
+The hardest thing will be recompiling schema expressions when the
+future is created or dropped.
 
 
 Alternatives
