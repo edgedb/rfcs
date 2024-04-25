@@ -261,7 +261,7 @@ along side a configuration setting also named ``simple_scoping``.
 The future feature presence will determine which behavior is used
 inside expressions within the schema, as well as serve as the default
 value if the configuration value is not set. The configuration setting
-will allow overriding the presence of absence of the feature.
+will allow overriding the presence or absence of the feature.
 
 We will do the same with a ``warn_old_scoping`` flag that will produce
 an error when path factoring is depended upon.
@@ -269,11 +269,18 @@ an error when path factoring is depended upon.
 The CLI will put ``using feature simple_scoping;`` in new 6.x projects
 by default (like we did with ``nonrecursive_access_policies``).
 
+Starting in 7.0, we will produce a warning or an error when
+setting these configuration values.
+
 The rationale for this approach is that we need it to be configurable
-within the schema, in order to control the behavior within the schema
+within the schema in order to control the behavior within the schema
 itself. It is also important to be able to configure it on a session
 level, so that applications may be gradually migrated.
+This leads to using an in-schema "future feature" as the baseline
+default configuration value, while allowing it to be overridden
+through the configuration system.
 
+TODO: an example.
 
 
 Implementation
@@ -316,6 +323,11 @@ more difficult project.
 
 Maintaining both options in the long term
 -----------------------------------------
+
+We could maintain the configurable behavior forever.
+
+This would accomplish *some* of the language design benefits... as
+long as the user is using the new mode.
 
 In the long run, we want to have a unified EdgeQL language and
 ecosystem, without needing to document and explain two versions of
