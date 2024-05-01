@@ -182,6 +182,33 @@ in the SQL query, we end up needing to "jump around" in the SQL
 tree. This makes following and understanding the flow of the IR->PG
 quite difficult at times.
 
+Some factoring/scoping related issues
+#####################################
+
+* Fix two issues directly reading pointers from a group (#7130)
+* Fix issues with cached global shapes and global cardinality inference (#7062)
+* Don't leak objects out of access policies when used in a computed global (#6926)
+* Fix DML coalesce inside of IF/ELSE (#6917)
+* Partial rework of how lprop scope tree visibility works (#6775)
+* Fix issues with empty sets leaking out of optional scopes (#6747)
+* Fix some bugs involving union and coalescing of optional values (#6590)
+* Fix inserts silently failing when a json->array handles 'null' (#6544)
+* Fix coalesced DML in FOR loops over objects (#6526)
+* Fix scope bugs in SET ... USING statements (#6267)
+* Fix use of certain empty sets from multiple optional arguments (#5990)
+* Enable compiling function arguments into subqueries for pgvector opt purposes (#5615)
+* Fix some obscure optional bugs in the presence of tuple projections (#5610)
+* Fix an optional scoping bug with important access policy implications (#5575)
+* Fix a category of confusing scoping related bugs in access policies (#4994)
+* Fix accessing tuple elements on link properties (#4811)
+* Fix several issues that manifest when using GROUP BY (#4549)
+* Fix correlation issue related to factoring_allowlist (#4525)
+* Fix computed global scoping behavior (#4394)
+* Fix issue when type injecting some nested DML cases (#4156)
+* Fix a scope leak that caused miscompiles (#3912)
+* Fix some scoping issues for singleton set literals (#3883)
+* Fix IN array_unpack for bigints (#3820)
+* Fix a collection of nested shape path reference issues (#3700)
 
 Specification
 =============
