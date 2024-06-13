@@ -139,6 +139,10 @@ order to create a "fully compositional" expression. The ``DETACHED``
 keyword can be used, but that does too much: it discards the enclosing
 variable bindings as well.
 
+Weird error messages
+####################
+
+
 TODO: "cannot reference correlated set" and "changes the
 interpretation of ... elsewhere in the query" are bizarre error
 messages but I'm not sure if there is any message that would make
@@ -279,7 +283,65 @@ instead (if we wanted, we could drop it and require doing that)::
 
 
 
-TODO: ORDER BY trouble.
+Remaining problems
+==================
+
+Link properties
+###############
+
+The current area where using link properties is probably the most
+idiomatic way to do something is when doing operations on link
+properties. Consider this query which returns every
+``schema::Operator`` with an annotation named ``std::identifier`` with
+the value ``'minus'``::
+
+    WITH
+        X := schema::Operator
+    SELECT
+        X { name }
+    FILTER
+        X.annotations.name = "std::identifier" AND X.annotations@value = 'minus'
+
+This doesn't work anymore if we get rid of path factoring.
+
+Converting it to use a ``FOR`` loop in the ``FILTER`` doesn't work
+either, because the variable bound in the ``FOR`` loop won't have
+access to the link properties.
+
+This works::
+
+    WITH
+      X := schema::Operator
+  SELECT
+      X {
+          name,
+          matches := (X.annotations { b := (X.annotations.name = "std::identifier" AND X.annotations@value = 'minus') }).b,
+      }
+  FILTER
+      .matches
+
+but is kind of awful, and lots of sensible variations (like inlining
+the definition of matches into the ``FILTER``) are currently buggy.
+
+We need to fix those bugs either way, but I think we should also
+upgrade ``FOR`` to work in this case::
+
+    WITH
+        X := schema::Operator
+    SELECT
+        X { name }
+    FILTER
+        (FOR ann in X.annotations UNION (ann.name = "std::identifier" AND ann@value = 'minus'))
+
+
+ORDER BY
+########
+
+Some queries producing tuples and doing an ORDER BY on something not
+in the tuple won't be easily expressable anymore without using free
+objects. I'm not that worried though.
+
+TODO: EXAMPLE
 
 
 Backwards compatibility
@@ -383,3 +445,18 @@ long as the user is using the new mode.
 In the long run, we want to have a unified EdgeQL language and
 ecosystem, without needing to document and explain two versions of
 this core piece of semantics.
+
+Eliminate link deduplication also
+---------------------------------
+
+Currently, doing ``User.friends`` will deduplicate the result:
+returning each object that is linked to by any ``friends`` link,
+without duplicates. This behavior does not apply if a link property is
+accessed immediately after, so ``User.friends@nickname`` does *not* do
+deduplication.
+
+This deduplication behavior means that otherwise totally sensible seeming
+queries like ``User.friends { name, @nickname }`` are not allowed.
+
+I do not like this behavior and would like to get rid of it, but it
+feels like a more breaking change to me.
