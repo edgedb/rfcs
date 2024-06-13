@@ -289,11 +289,11 @@ Thus, the ``DETACHED`` keyword is sadly still meaningful, though we
 should typically recommend using ``WITH`` bindings of new names
 instead (if we wanted, we could drop it and require doing that)::
 
-  db> select User { names := detached User.first_name };
-  {
-    default::User {names: {'Peter', 'Tony'}},
-    default::User {names: {'Peter', 'Tony'}},
-  }
+    db> select User { names := detached User.first_name };
+    {
+      default::User {names: {'Peter', 'Tony'}},
+      default::User {names: {'Peter', 'Tony'}},
+    }
 
 
 
@@ -325,14 +325,14 @@ access to the link properties.
 This works::
 
     WITH
-      X := schema::Operator
-  SELECT
-      X {
-          name,
-          matches := (X.annotations { b := (X.annotations.name = "std::identifier" AND X.annotations@value = 'minus') }).b,
-      }
-  FILTER
-      .matches
+        X := schema::Operator
+    SELECT
+        X {
+            name,
+            matches := (X.annotations { b := (X.annotations.name = "std::identifier" AND X.annotations@value = 'minus') }).b,
+        }
+    FILTER
+        .matches
 
 but is kind of awful, and lots of sensible variations (like inlining
 the definition of matches into the ``FILTER``) are currently buggy.
@@ -356,8 +356,8 @@ in the tuple won't be easily expressable anymore without using free
 objects.
 For example, the query (on our cards schema)::
 
-  SELECT (User.name, User.deck.name)
-  ORDER BY User.name THEN User.deck.cost
+    SELECT (User.name, User.deck.name)
+    ORDER BY User.name THEN User.deck.cost
 
 returns tuples of user names and names of the cards in their deck,
 ordered in part by the cost of the cards. Doing this once path
@@ -365,21 +365,21 @@ factoring is removed is made more difficult.
 
 There is a nice seeming approach that does not work::
 
-  FOR u in User
-  FOR d in u.deck
-  SELECT (u.name, d.name)
-  ORDER BY u.name THEN d.cost
+    FOR u in User
+    FOR d in u.deck
+    SELECT (u.name, d.name)
+    ORDER BY u.name THEN d.cost
 
 
 This breaks because the ``ORDER BY`` is *inside* the ``FOR`` loops.
 
 One way to do it with the existing implementation is::
 
-  SELECT (SELECT (
-    FOR u in User
-    FOR d in u.deck
-    SELECT { out := (u.name, d.name), cost := d.cost }
-  ) ORDER BY .out.0 THEN .cost).out
+    SELECT (SELECT (
+      FOR u in User
+      FOR d in u.deck
+      SELECT { out := (u.name, d.name), cost := d.cost }
+    ) ORDER BY .out.0 THEN .cost).out
 
 I'm unsure of how serious of a problem this will be.
 This sort of query is not idiomatic anyway.
@@ -389,9 +389,9 @@ Two (relatedish) possible solutions include:
    new construct for allowing ``ORDER BY`` on ``FOR`` to be
    specified. (I have an implementation of this already from way
    back.)
- * Declare that when we have a chain of ``FOR``s with a ``SELECT``
-   with an ``ORDER BY`` as the body, the ``ORDER BY`` is evaluated
-   "outside" of the ``FOR``s.
+ * Declare that when we have a chain of ``FOR`` statements with a
+   ``SELECT`` with an ``ORDER BY`` as the body, the ``ORDER BY`` is
+   evaluated "outside" of the ``FOR`` statements.
 
 
 Backwards compatibility
