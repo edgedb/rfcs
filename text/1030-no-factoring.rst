@@ -298,7 +298,7 @@ instead (if we wanted, we could drop it and require doing that)::
 
 
 Remaining problems
-==================
+------------------
 
 Link properties
 ###############
@@ -353,9 +353,45 @@ ORDER BY
 
 Some queries producing tuples and doing an ORDER BY on something not
 in the tuple won't be easily expressable anymore without using free
-objects. I'm not that worried though.
+objects.
+For example, the query (on our cards schema)::
 
-TODO: EXAMPLE
+  SELECT (User.name, User.deck.name)
+  ORDER BY User.name THEN User.deck.cost
+
+returns tuples of user names and names of the cards in their deck,
+ordered in part by the cost of the cards. Doing this once path
+factoring is removed is made more difficult.
+
+There is a nice seeming approach that does not work::
+
+  FOR u in User
+  FOR d in u.deck
+  SELECT (u.name, d.name)
+  ORDER BY u.name THEN d.cost
+
+
+This breaks because the ``ORDER BY`` is *inside* the ``FOR`` loops.
+
+One way to do it with the existing implementation is::
+
+  SELECT (SELECT (
+    FOR u in User
+    FOR d in u.deck
+    SELECT { out := (u.name, d.name), cost := d.cost }
+  ) ORDER BY .out.0 THEN .cost).out
+
+I'm unsure of how serious of a problem this will be.
+This sort of query is not idiomatic anyway.
+
+Two (relatedish) possible solutions include:
+ * Explicitly generalize ``FOR`` to allow multiple iterators. Add a
+   new construct for allowing ``ORDER BY`` on ``FOR`` to be
+   specified. (I have an implementation of this already from way
+   back.)
+ * Declare that when we have a chain of ``FOR``s with a ``SELECT``
+   with an ``ORDER BY`` as the body, the ``ORDER BY`` is evaluated
+   "outside" of the ``FOR``s.
 
 
 Backwards compatibility
