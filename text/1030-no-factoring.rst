@@ -142,6 +142,20 @@ variable bindings as well.
 Weird error messages
 ####################
 
+Consider this query, simplified from a genuine user query from a bug
+report::
+
+  with name := <str>$0,
+  select if name like 'Bot_%' then
+    (insert Bot { name := name })
+  else
+    (insert User { name := name })
+
+It fails with ``InvalidReferenceError: cannot reference correlated set
+'name' here``.
+
+The fix is to wrap the ``name`` in the conditional with a ``select``.
+I'm not sure how we could possibly make that make sense to a user.
 
 TODO: "cannot reference correlated set" and "changes the
 interpretation of ... elsewhere in the query" are bizarre error
