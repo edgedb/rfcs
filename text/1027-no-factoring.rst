@@ -7,7 +7,7 @@
 
 
 =====================================
-RFC 1030: Simplifying path resolution
+RFC 1027: Simplifying path resolution
 =====================================
 
 This RFC proposes simplifying EdgeQL's `path resolution semantics
