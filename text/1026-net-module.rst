@@ -52,9 +52,9 @@ The module will provide the following functions:
    scalar type std::net::HttpMethod extending std::enums<GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS>;
 
    function std::net::http_request(
-       method: std::net::HttpMethod,
        url: str,
-       body: optional str,
+       named only body: optional str,
+       named only method: std::net::HttpMethod = std::net::HttpMethod::GET,
        named only headers: optional json
    ) -> std::net::HttpResponse;
 
@@ -135,9 +135,9 @@ HTTP Request
        payload := '{"key": "value"}',
        response := (
            select std::net::http_request(
-               'POST',
                'https://api.example.com/webhook',
                body := payload,
+               method := std::net::HttpMethod::POST,
                headers := to_json('{"Content-Type": "application/json"}'),
            )
        )
