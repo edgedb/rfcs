@@ -55,7 +55,7 @@ The module will provide the following functions:
        url: str,
        named only body: optional str,
        named only method: std::net::HttpMethod = std::net::HttpMethod::GET,
-       named only headers: optional json
+       named only headers: optional array<tuple<name: str, value: str>>
    ) -> std::net::HttpResponse;
 
 2. SMTP Send Function:
@@ -138,7 +138,7 @@ HTTP Request
                'https://api.example.com/webhook',
                body := payload,
                method := std::net::HttpMethod::POST,
-               headers := to_json('{"Content-Type": "application/json"}'),
+               headers := [("Content-Type", "application/json")],
            )
        )
    select response {
