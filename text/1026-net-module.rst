@@ -49,7 +49,7 @@ The module will provide the following functions:
 
 .. code-block:: edgeql
 
-   scalar type std::net::HttpMethod extending std::enums<GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS>;
+   scalar type std::net::HttpMethod extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
 
    function std::net::http_request(
        url: str,
