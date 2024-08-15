@@ -178,7 +178,7 @@ This RFC introduces new functionality and does not affect existing
 features. There are no backwards compatibility issues.
 
 Rejected Alternative Ideas
---------------------------
+==========================
 
 1. Using pg_net: While pg_net provides similar functionality, it was
    decided to implement our own solution for better control and
@@ -188,8 +188,8 @@ Rejected Alternative Ideas
    a simple, built-in policy will be used instead of a fully
    configurable one to reduce complexity.
 
-Future Work
------------
+Future Related Work
+===================
 
 1. Add support for more protocols (e.g., AMQP, ZeroMQ, SQS, FTP).
 2. Implement fully type-checked URLs.
