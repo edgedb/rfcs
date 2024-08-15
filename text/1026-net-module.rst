@@ -192,7 +192,9 @@ Future Related Work
 ===================
 
 1. Add support for more protocols (e.g., AMQP, ZeroMQ, SQS, FTP).
-2. Implement fully type-checked URLs.
+2. Implement fully type-checked URLs and standard library functions to
+   assist in constructing correct URLs, and with quoting and
+   concatenation.
 3. Integration with a future EdgeDB queuing module to gain a more
    sophisticated retry mechanism with backoff strategies.
 
