@@ -38,7 +38,7 @@ Specification
 Module Name
 -----------
 
-The new module will be named ``std::net``.
+The new module will be named ``net``.
 
 Functions
 ---------
@@ -49,27 +49,27 @@ The module will provide the following functions:
 
 .. code-block:: edgeql
 
-   scalar type std::net::HttpMethod extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
+   scalar type net::HttpMethod extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
 
-   function std::net::http_request(
+   function net::http_request(
        url: str,
        named only body: optional str,
-       named only method: std::net::HttpMethod = std::net::HttpMethod::GET,
+       named only method: net::HttpMethod = net::HttpMethod::GET,
        named only headers: optional array<tuple<name: str, value: str>>
-   ) -> std::net::HttpResponse;
+   ) -> net::HttpResponse;
 
 2. SMTP Send Function:
 
 .. code-block:: edgeql
 
-   function std::net::smtp_send(
+   function net::smtp_send(
        smtp_url: str,
        named only from: multi str,
        named only to: multi str,
        named only subject: str,
        named only text: optional str,
        named only html: optional str,
-   ) -> std::net::SmtpResponse
+   ) -> net::SmtpResponse
 
 ResponseState enum
 ------------------
@@ -79,7 +79,7 @@ represented by an enum:
 
 .. code-block:: edgeql
 
-   scalar type std::net::ResponseState extending std::enums<Pending, InProgress, Complete, Failed>;
+   scalar type net::ResponseState extending std::enums<Pending, InProgress, Complete, Failed>;
 
 Response Object Types
 ---------------------
@@ -89,8 +89,8 @@ structure:
 
 .. code-block:: edgeql
 
-   type std::net::HttpResponse {
-       required state: std::net::ResponseState;
+   type net::HttpResponse {
+       required state: net::ResponseState;
        required created_at: datetime;
 
        status: int16;
@@ -104,8 +104,8 @@ structure:
 
 .. code-block:: edgeql
 
-   type std::net::SmtpResponse {
-       required state: std::net::ResponseState;
+   type net::SmtpResponse {
+       required state: net::ResponseState;
        required created_at: datetime;
 
        reply_code: int16;
@@ -134,10 +134,10 @@ HTTP Request
    with
        payload := '{"key": "value"}',
        response := (
-           select std::net::http_request(
+           select net::http_request(
                'https://api.example.com/webhook',
                body := payload,
-               method := std::net::HttpMethod::POST,
+               method := net::HttpMethod::POST,
                headers := [("Content-Type", "application/json")],
            )
        )
@@ -156,7 +156,7 @@ SMTP Send
        html_body := '<html><body><p>Hello, this is a test email.</p></body></html>',
        text_body := 'Hello, this is a test email.',
        response := (
-           select std::net::smtp_send(
+           select net::smtp_send(
                'smtp://smtp.example.com:587',
                from := 'sender@example.com',
                to := {'recipient1@example.com', 'recipient2@example.com'},
