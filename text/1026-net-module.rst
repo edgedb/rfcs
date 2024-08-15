@@ -177,16 +177,6 @@ Backwards Compatibility
 This RFC introduces new functionality and does not affect existing
 features. There are no backwards compatibility issues.
 
-Security Implications
-======================
-
-1. URL Validation: Implement proper URL validation to prevent malicious
-   URL inputs.
-2. Rate Limiting: Consider implementing rate limiting to prevent abuse
-   of the networking functions.
-3. TLS: Ensure that all network communications use secure protocols
-   (HTTPS, SMTPS) by default.
-
 Rejected Alternative Ideas
 --------------------------
 
