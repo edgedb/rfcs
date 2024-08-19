@@ -83,7 +83,7 @@ HTTP
 
   function net::http_request(
     url: str,
-    named only body: optional str,
+    named only body: optional bytes,
     named only method: net::HttpMethod = net::HttpMethod::GET,
     named only headers: optional array<tuple<name: str, value: str>>
   ) -> net::HttpTask;
