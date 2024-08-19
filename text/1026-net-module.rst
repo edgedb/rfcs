@@ -40,77 +40,86 @@ Module Name
 
 The new module will be named ``net``.
 
-Functions
----------
+Utility types
+-------------
 
-The module will provide the following functions:
-
-1. HTTP Request Function:
-
-.. code-block:: edgeql
-
-   scalar type net::HttpMethod extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
-
-   function net::http_request(
-       url: str,
-       named only body: optional str,
-       named only method: net::HttpMethod = net::HttpMethod::GET,
-       named only headers: optional array<tuple<name: str, value: str>>
-   ) -> net::HttpResponse;
-
-2. SMTP Send Function:
+Since requests are sent asynchronously, we need a way to track the status of the
+request. This is done by using a ``net::Task`` type to represent a request and
+its current state. Each protocol will have its own ``net::Task`` concrete type.
 
 .. code-block:: edgeql
 
-   function net::smtp_send(
-       smtp_url: str,
-       named only from: multi str,
-       named only to: multi str,
-       named only subject: str,
-       named only text: optional str,
-       named only html: optional str,
-   ) -> net::SmtpResponse
+  scalar type net::TaskState extending std::enums<Pending, InProgress, Complete, Failed>;
 
-ResponseState enum
-------------------
+  abstract type net::Task {
+    required state: net::TaskState;
+    required created_at: datetime;
+  }
 
-Since network requests are asynchronous, the response state will be
-represented by an enum:
+HTTP
+----
 
 .. code-block:: edgeql
 
-   scalar type net::ResponseState extending std::enums<Pending, InProgress, Complete, Failed>;
+  abstract type net::HttpMethod extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
 
-Response Object Types
----------------------
+  type net::HttpRequest {
+    required url: str;
+    required method: net::HttpMethod;
+    required headers: array<tuple<name: str, value: str>>;
+    required body: bytes;
+  };
 
-The HTTP response object will be an internal type with the following
-structure:
+  type net::HttpResponse {
+    required status: int16;
+    required headers: array<tuple<name: str, value: str>>;
+    body: bytes;
+  };
+
+  type net::HttpTask extending net::Task {
+    required request: net::HttpRequest;
+    response: net::HttpResponse;
+  };
+
+  function net::http_request(
+    url: str,
+    named only body: optional str,
+    named only method: net::HttpMethod = net::HttpMethod::GET,
+    named only headers: optional array<tuple<name: str, value: str>>
+  ) -> net::HttpTask;
+
+SMTP
+----
 
 .. code-block:: edgeql
 
-   type net::HttpResponse {
-       required state: net::ResponseState;
-       required created_at: datetime;
+  type net::SmtpRequest {
+    required url: str;
+    required from: multi str;
+    required to: multi str;
+    required subject: str;
+    required text: optional str;
+    required html: optional str;
+  };
 
-       status: int16;
-       headers: json;
-       body: bytes;
-   }
+  type net::SmtpResponse {
+    required reply_code: int16;
+    reply_message: str;
+  };
 
+  type net::SmtpTask extending net::Task {
+    required request: net::SmtpRequest;
+    response: net::SmtpResponse;
+  };
 
-The SMTP response object will be an internal type with the following
-structure:
-
-.. code-block:: edgeql
-
-   type net::SmtpResponse {
-       required state: net::ResponseState;
-       required created_at: datetime;
-
-       reply_code: int16;
-       reply_message: str;
-   }
+  function net::smtp_send(
+    url: str,
+    named only from: multi str,
+    named only to: multi str,
+    named only subject: str,
+    named only text: optional str,
+    named only html: optional str,
+  ) -> net::SmtpTask;
 
 Implementation Details
 ----------------------
@@ -133,7 +142,7 @@ HTTP Request
 
    with
        payload := '{"key": "value"}',
-       response := (
+       task := (
            select net::http_request(
                'https://api.example.com/webhook',
                body := payload,
@@ -141,7 +150,7 @@ HTTP Request
                headers := [("Content-Type", "application/json")],
            )
        )
-   select response {
+   select task {
        id,
        state,
        created_at,
@@ -155,7 +164,7 @@ SMTP Send
    with
        html_body := '<html><body><p>Hello, this is a test email.</p></body></html>',
        text_body := 'Hello, this is a test email.',
-       response := (
+       task := (
            select net::smtp_send(
                'smtp://smtp.example.com:587',
                from := 'sender@example.com',
@@ -165,7 +174,7 @@ SMTP Send
                text := text_body
            )
        )
-   select response {
+   select task {
        id,
        state,
        created_at,
