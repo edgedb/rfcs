@@ -61,39 +61,39 @@ HTTP
 
 .. code-block:: edgeql
 
-  abstract type net::HttpMethod extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
+  abstract type net::http::Method extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
 
-  type net::HttpRequest {
+  type net::http::Request {
     required url: str;
-    required method: net::HttpMethod;
+    required method: net::http::Method;
     required headers: array<tuple<name: str, value: str>>;
     required body: bytes;
   };
 
-  type net::HttpResponse {
+  type net::http::Response {
     required status: int16;
     required headers: array<tuple<name: str, value: str>>;
     body: bytes;
   };
 
-  type net::HttpTask extending net::Task {
-    required request: net::HttpRequest;
-    response: net::HttpResponse;
+  type net::http::Task extending net::Task {
+    required request: net::http::Request;
+    response: net::http::Response;
   };
 
-  function net::http_request(
+  function net::http::request(
     url: str,
     named only body: optional bytes,
     named only method: net::HttpMethod = net::HttpMethod::GET,
     named only headers: optional array<tuple<name: str, value: str>>
-  ) -> net::HttpTask;
+  ) -> net::http::Task;
 
 SMTP
 ----
 
 .. code-block:: edgeql
 
-  type net::SmtpRequest {
+  type net::smtp::Request {
     required url: str;
     required from: multi str;
     required to: multi str;
@@ -102,24 +102,24 @@ SMTP
     required html: optional str;
   };
 
-  type net::SmtpResponse {
+  type net::smtp::Response {
     required reply_code: int16;
     reply_message: str;
   };
 
-  type net::SmtpTask extending net::Task {
-    required request: net::SmtpRequest;
-    response: net::SmtpResponse;
+  type net::smtp::Task extending net::Task {
+    required request: net::smtp::Request;
+    response: net::smtp::Response;
   };
 
-  function net::smtp_send(
+  function net::smtp::send(
     url: str,
     named only from: multi str,
     named only to: multi str,
     named only subject: str,
     named only text: optional str,
     named only html: optional str,
-  ) -> net::SmtpTask;
+  ) -> net::smtp::Task;
 
 Implementation Details
 ----------------------
@@ -143,7 +143,7 @@ HTTP Request
    with
        payload := '{"key": "value"}',
        task := (
-           select net::http_request(
+           select net::http::request(
                'https://api.example.com/webhook',
                body := payload,
                method := net::HttpMethod::POST,
@@ -153,6 +153,7 @@ HTTP Request
    select task {
        id,
        state,
+       request,
        created_at,
    };
 
@@ -165,7 +166,7 @@ SMTP Send
        html_body := '<html><body><p>Hello, this is a test email.</p></body></html>',
        text_body := 'Hello, this is a test email.',
        task := (
-           select net::smtp_send(
+           select net::smtp::send(
                'smtp://smtp.example.com:587',
                from := 'sender@example.com',
                to := {'recipient1@example.com', 'recipient2@example.com'},
@@ -177,6 +178,7 @@ SMTP Send
    select task {
        id,
        state,
+       request,
        created_at,
    };
 
