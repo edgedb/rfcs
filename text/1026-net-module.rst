@@ -51,9 +51,12 @@ its current state. Each protocol will have its own ``net::Task`` concrete type.
 
   scalar type net::TaskState extending std::enums<Pending, InProgress, Complete, Failed>;
 
+  scalar type net::TaskFailure extending std::enums<NetworkError, Timeout>;
+
   abstract type net::Task {
     required state: net::TaskState;
     required created_at: datetime;
+    failure: tuple<failure: net::TaskFailure, message: str>;
   }
 
 HTTP
