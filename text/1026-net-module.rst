@@ -50,15 +50,9 @@ request and its current state. Each protocol will have its own
 
 .. code-block:: edgeql
 
-  scalar type net::AsyncResultState extending std::enums<Pending, InProgress, Complete, Failed>;
+  scalar type net::RequestState extending std::enums<Pending, InProgress, Complete, Failed>;
 
-  scalar type net::AsyncResultFailure extending std::enums<NetworkError, Timeout>;
-
-  abstract type net::AsyncResult {
-    required state: net::AsyncResultState;
-    required created_at: datetime;
-    failure: tuple<failure: net::AsyncResultFailure, message: str>;
-  }
+  scalar type net::RequestFailure extending std::enums<NetworkError, Timeout>;
 
 HTTP
 ----
@@ -67,11 +61,19 @@ HTTP
 
   abstract type net::http::Method extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
 
-  type net::http::Request {
+  type net::http::ScheduledRequest {
+    required state: net::RequestState;
+    required created_at: datetime;
+    failure: tuple<failure: net::RequestFailure, message: str>;
+
     required url: str;
     required method: net::http::Method;
     required headers: array<tuple<name: str, value: str>>;
     required body: bytes;
+
+    response: net::http::Response {
+      constraint exclusive;
+    };
   };
 
   type net::http::Response {
@@ -80,40 +82,38 @@ HTTP
     body: bytes;
   };
 
-  type net::http::AsyncResult extending net::AsyncResult {
-    required request: net::http::Request;
-    response: net::http::Response;
-  };
-
   function net::http::request(
     url: str,
     named only body: optional bytes,
     named only method: net::HttpMethod = net::HttpMethod::GET,
     named only headers: optional array<tuple<name: str, value: str>>
-  ) -> net::http::AsyncResult;
+  ) -> net::http::ScheduledRequest;
 
 SMTP
 ----
 
 .. code-block:: edgeql
 
-  type net::smtp::Request {
+  type net::smtp::ScheduledRequest {
+    required state: net::RequestState;
+    required created_at: datetime;
+    failure: tuple<failure: net::RequestFailure, message: str>;
+
     required url: str;
     required from: multi str;
     required to: multi str;
     required subject: str;
     required text: optional str;
     required html: optional str;
+
+    response: net::smtp::Response {
+      constraint exclusive;
+    };
   };
 
   type net::smtp::Response {
     required reply_code: int16;
     reply_message: str;
-  };
-
-  type net::smtp::AsyncResult extending net::AsyncResult {
-    required request: net::smtp::Request;
-    response: net::smtp::Response;
   };
 
   function net::smtp::send(
@@ -123,16 +123,14 @@ SMTP
     named only subject: str,
     named only text: optional str,
     named only html: optional str,
-  ) -> net::smtp::AsyncResult;
+  ) -> net::smtp::ScheduledRequest;
 
 Implementation Details
 ----------------------
 
-- Each ``AsyncResult`` will represent a single request.
-- Pending ``AsyncResult`` objects will be represent the queue of requests to be sent.
+- Pending ``ScheduledRequest`` objects will be represent the queue of requests to be sent.
 - A Rust process will handle sending the requests.
 - Each protocol (HTTP, SMTP) will have its own pool of worker processes.
-- Extensions that use this module will implement their own domain-specific retry logic.
 - URLs will initially be represented as plain strings, with the possibility of adding type-checked URL support in the future.
 
 Examples
@@ -145,7 +143,7 @@ HTTP Request
 
    with
        payload := '{"key": "value"}',
-       async_result := (
+       request := (
            select net::http::request(
                'https://api.example.com/webhook',
                body := payload,
@@ -153,11 +151,11 @@ HTTP Request
                headers := [("Content-Type", "application/json")],
            )
        )
-   select async_result {
+   select request {
        id,
        state,
-       request,
        created_at,
+       url,
    };
 
 SMTP Send
@@ -168,7 +166,7 @@ SMTP Send
    with
        html_body := '<html><body><p>Hello, this is a test email.</p></body></html>',
        text_body := 'Hello, this is a test email.',
-       async_result := (
+       request := (
            select net::smtp::send(
                'smtp://smtp.example.com:587',
                from := 'sender@example.com',
@@ -178,11 +176,11 @@ SMTP Send
                text := text_body
            )
        )
-   select async_result {
+   select request {
        id,
        state,
-       request,
        created_at,
+       url,
    };
 
 Backwards Compatibility
