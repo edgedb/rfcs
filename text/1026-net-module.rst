@@ -207,6 +207,6 @@ Future Related Work
 2. Implement fully type-checked URLs and standard library functions to
    assist in constructing correct URLs, and with quoting and
    concatenation.
-3. Integration with a future EdgeDB queuing module to gain a more
-   sophisticated retry mechanism with backoff strategies.
-
+3. Allow retrying through configuration at request creation time.
+4. Integration with a future EdgeDB queuing module to gain a more
+   sophisticated retry strategies, durability, and reliability.
