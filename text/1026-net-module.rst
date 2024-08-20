@@ -44,19 +44,20 @@ Utility types
 -------------
 
 Since requests are sent asynchronously, we need a way to track the status of the
-request. This is done by using a ``net::Task`` type to represent a request and
-its current state. Each protocol will have its own ``net::Task`` concrete type.
+request. This is done by using a ``net::AsyncResult`` type to represent a
+request and its current state. Each protocol will have its own
+``net::AsyncResult`` concrete type.
 
 .. code-block:: edgeql
 
-  scalar type net::TaskState extending std::enums<Pending, InProgress, Complete, Failed>;
+  scalar type net::AsyncResultState extending std::enums<Pending, InProgress, Complete, Failed>;
 
-  scalar type net::TaskFailure extending std::enums<NetworkError, Timeout>;
+  scalar type net::AsyncResultFailure extending std::enums<NetworkError, Timeout>;
 
-  abstract type net::Task {
-    required state: net::TaskState;
+  abstract type net::AsyncResult {
+    required state: net::AsyncResultState;
     required created_at: datetime;
-    failure: tuple<failure: net::TaskFailure, message: str>;
+    failure: tuple<failure: net::AsyncResultFailure, message: str>;
   }
 
 HTTP
@@ -79,7 +80,7 @@ HTTP
     body: bytes;
   };
 
-  type net::http::Task extending net::Task {
+  type net::http::AsyncResult extending net::AsyncResult {
     required request: net::http::Request;
     response: net::http::Response;
   };
@@ -89,7 +90,7 @@ HTTP
     named only body: optional bytes,
     named only method: net::HttpMethod = net::HttpMethod::GET,
     named only headers: optional array<tuple<name: str, value: str>>
-  ) -> net::http::Task;
+  ) -> net::http::AsyncResult;
 
 SMTP
 ----
@@ -110,7 +111,7 @@ SMTP
     reply_message: str;
   };
 
-  type net::smtp::Task extending net::Task {
+  type net::smtp::AsyncResult extending net::AsyncResult {
     required request: net::smtp::Request;
     response: net::smtp::Response;
   };
@@ -122,7 +123,7 @@ SMTP
     named only subject: str,
     named only text: optional str,
     named only html: optional str,
-  ) -> net::smtp::Task;
+  ) -> net::smtp::AsyncResult;
 
 Implementation Details
 ----------------------
@@ -145,7 +146,7 @@ HTTP Request
 
    with
        payload := '{"key": "value"}',
-       task := (
+       async_result := (
            select net::http::request(
                'https://api.example.com/webhook',
                body := payload,
@@ -153,7 +154,7 @@ HTTP Request
                headers := [("Content-Type", "application/json")],
            )
        )
-   select task {
+   select async_result {
        id,
        state,
        request,
@@ -168,7 +169,7 @@ SMTP Send
    with
        html_body := '<html><body><p>Hello, this is a test email.</p></body></html>',
        text_body := 'Hello, this is a test email.',
-       task := (
+       async_result := (
            select net::smtp::send(
                'smtp://smtp.example.com:587',
                from := 'sender@example.com',
@@ -178,7 +179,7 @@ SMTP Send
                text := text_body
            )
        )
-   select task {
+   select async_result {
        id,
        state,
        request,
