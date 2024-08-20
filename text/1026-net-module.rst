@@ -128,13 +128,12 @@ SMTP
 Implementation Details
 ----------------------
 
-1. Requests will be stored in a queue table in the database.
-2. A Rust process will handle sending the requests.
-3. Each protocol (HTTP, SMTP) will have its own queue and pool of worker
-   processes.
-4. Simple retry logic will be implemented for failed requests.
-5. URLs will initially be represented as plain strings, with the
-   possibility of adding type-checked URL support in the future.
+- Each ``AsyncResult`` will represent a single request.
+- Pending ``AsyncResult`` objects will be represent the queue of requests to be sent.
+- A Rust process will handle sending the requests.
+- Each protocol (HTTP, SMTP) will have its own pool of worker processes.
+- Extensions that use this module will implement their own domain-specific retry logic.
+- URLs will initially be represented as plain strings, with the possibility of adding type-checked URL support in the future.
 
 Examples
 ========
