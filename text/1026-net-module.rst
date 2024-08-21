@@ -44,15 +44,20 @@ Utility types
 -------------
 
 Since requests are sent asynchronously, we need a way to track the status of the
-request. This is done by using a ``net::AsyncResult`` type to represent a
-request and its current state. Each protocol will have its own
-``net::AsyncResult`` concrete type.
+request.
 
 .. code-block:: edgeql
 
   scalar type net::RequestState extending std::enums<Pending, InProgress, Complete, Failed>;
 
   scalar type net::RequestFailure extending std::enums<NetworkError, Timeout>;
+
+``net::RequestState`` represents the current asynchronous state of a request.
+The worker process will update the state of the request as it progresses through
+the various states.
+
+``net::RequestFailure`` represents the types of failure that can occur when
+trying to send the request, not a failure response from the server.
 
 HTTP
 ----
