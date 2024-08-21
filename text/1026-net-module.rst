@@ -90,7 +90,7 @@ This submodule provides functionality for making HTTP requests.
     body: bytes;
   };
 
-  function net::http::request(
+  function net::http::schedule_request(
     url: str,
     named only body: optional bytes,
     named only method: net::HttpMethod = net::HttpMethod::GET,
@@ -127,7 +127,7 @@ This submodule provides functionality for sending SMTP messages.
     reply_message: str;
   };
 
-  function net::smtp::send(
+  function net::smtp::schedule_send(
     url: str,
     named only from: multi str,
     named only to: multi str,
@@ -155,7 +155,7 @@ HTTP Request
    with
        payload := '{"key": "value"}',
        request := (
-           select net::http::request(
+           select net::http::schedule_request(
                'https://api.example.com/webhook',
                body := payload,
                method := net::http::Method::POST,
@@ -178,7 +178,7 @@ SMTP Send
        html_body := '<html><body><p>Hello, this is a test email.</p></body></html>',
        text_body := 'Hello, this is a test email.',
        request := (
-           select net::smtp::send(
+           select net::smtp::schedule_send(
                'smtp://smtp.example.com:587',
                from := 'sender@example.com',
                to := {'recipient1@example.com', 'recipient2@example.com'},
