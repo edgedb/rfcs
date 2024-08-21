@@ -62,6 +62,9 @@ trying to send the request, not a failure response from the server.
 HTTP
 ----
 
+This section outlines the types and functions of the ``net::http`` submodule.
+This submodule provides functionality for making HTTP requests.
+
 .. code-block:: edgeql
 
   abstract type net::http::Method extending std::enums<`GET`, POST, PUT, `DELETE`, PATCH, HEAD, OPTIONS>;
@@ -96,6 +99,9 @@ HTTP
 
 SMTP
 ----
+
+This section outlines the types and functions of the ``net::smtp`` submodule.
+This submodule provides functionality for sending SMTP messages.
 
 .. code-block:: edgeql
 
