@@ -50,13 +50,13 @@ request.
 
   scalar type net::RequestState extending std::enums<Pending, InProgress, Complete, Failed>;
 
-  scalar type net::RequestFailure extending std::enums<NetworkError, Timeout>;
+  scalar type net::RequestFailureKind extending std::enums<NetworkError, Timeout>;
 
 ``net::RequestState`` represents the current asynchronous state of a request.
 The worker process will update the state of the request as it progresses through
 the various states.
 
-``net::RequestFailure`` represents the types of failure that can occur when
+``net::RequestFailureKind`` represents the types of failure that can occur when
 trying to send the request, not a failure response from the server.
 
 HTTP
@@ -72,7 +72,7 @@ This submodule provides functionality for making HTTP requests.
   type net::http::ScheduledRequest {
     required state: net::RequestState;
     required created_at: datetime;
-    failure: tuple<failure: net::RequestFailure, message: str>;
+    failure: tuple<kind: net::RequestFailureKind, message: str>;
 
     required url: str;
     required method: net::http::Method;
@@ -108,7 +108,7 @@ This submodule provides functionality for sending SMTP messages.
   type net::smtp::ScheduledRequest {
     required state: net::RequestState;
     required created_at: datetime;
-    failure: tuple<failure: net::RequestFailure, message: str>;
+    failure: tuple<kind: net::RequestFailureKind, message: str>;
 
     required url: str;
     required from: multi str;
@@ -158,7 +158,7 @@ HTTP Request
            select net::http::request(
                'https://api.example.com/webhook',
                body := payload,
-               method := net::HttpMethod::POST,
+               method := net::http::Method::POST,
                headers := [("Content-Type", "application/json")],
            )
        )
