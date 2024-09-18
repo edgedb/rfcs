@@ -14,6 +14,7 @@ To read more on when and how to submit an RFC document, see RFC 1.
 * [RFC 1022 - Typing free objects & simplifying SDL syntax](./text/1022-freetypes.rst)
 * [RFC 1023 - Adding Splats Syntax](./text/1023-splats.rst)
 * [RFC 1025 - Database Branches](./text/1025-branches.rst)
+* [RFC 1027 - Simplifying path resolution](./text/1027-no-factoring.rst)
 
 ### Accepted
 * [RFC 1 - The RFC Process](./text/0001-rfc-process.rst) (active)
