@@ -157,10 +157,10 @@ It fails with ``InvalidReferenceError: cannot reference correlated set
 The fix is to wrap the ``name`` in the if condition with a ``select``.
 I'm not sure how we could possibly make that make sense to a user.
 
-TODO: "cannot reference correlated set" and "changes the
-interpretation of ... elsewhere in the query" are bizarre error
-messages but I'm not sure if there is any message that would make
-users understand them
+It is likely that there is better wording for the messages "cannot
+reference correlated set" and "changes the interpretation of ... elsewhere
+in the query", but I'm not certain it would be enough to make them easy
+to understand.
 
 
 Implementation Concerns
@@ -400,9 +400,11 @@ value if the configuration value is not set. The configuration setting
 will allow overriding the presence or absence of the feature.
 
 We will do the same with a ``warn_old_scoping`` flag that will produce
-an error when path factoring is depended upon.
+an error when path factoring is depended upon. If both
+``simple_scoping`` and ``warn_old_scoping`` are active, then only
+``simple_scoping`` will apply.
 
-The CLI will put ``using feature simple_scoping;`` in new 6.x projects
+The CLI will put ``using future simple_scoping;`` in new 6.x projects
 by default (like we did with ``nonrecursive_access_policies``).
 
 Starting in 7.0, we will produce a warning or an error when
@@ -416,7 +418,65 @@ This leads to using an in-schema "future feature" as the baseline
 default configuration value, while allowing it to be overridden
 through the configuration system.
 
-TODO: an example.
+For concreteness, here are all of the posible combinations of whether ``using future simple_scoping`` is set and the value of the configuration value ``simple_scoping``:
+
+.. list-table::
+   :widths: 25 25 25 25
+   :header-rows: 1
+
+   * - Future exists?
+     - Config value
+     - Query is simply scoped
+     - Schema is simply scoped
+   * - No
+     - ``{}``
+     - No
+     - No
+   * - No
+     - ``true``
+     - Yes
+     - No
+   * - No
+     - ``false``
+     - No
+     - No
+   * - Yes
+     - ``{}``
+     - Yes
+     - Yes
+   * - Yes
+     - ``true``
+     - Yes
+     - Yes
+   * - Yes
+     - ``false``
+     - No
+     - Yes
+
+
+Recommended upgrade plan for users
+==================================
+
+The safest approach is to first get your entire schema and application
+working with ``warn_old_scoping``. Once that is done, it should be
+safe to switch to ``simple_scoping`` without changes in behavior.
+
+If you are very confident in your test coverage, though, you can try
+skipping dealing with ``warn_old_scoping`` and go straight to
+``simple_scoping``.
+
+There are many different potential migration strategies. One that I
+think is probably good::
+
+1. Run ``CONFIGURE CURRENT DATABASE SET warn_old_scoping := true``
+2. Try running all of your queries against the database.
+3. Fix any that fail.
+4. Adjust your schema until setting ``using future warn_old_scoping`` works.
+
+If you wish to proceed incrementally with steps 2 and 3, you can
+configure ``warn_old_scoping`` in your clients, having it enabled for
+queries that you have verified work with it and disabled for queries
+that have not yet been verified or updated.
 
 
 Implementation
@@ -425,8 +485,8 @@ Implementation
 The implementation of ``simple_scoping`` is easy, and consists of
 wrapping paths in an extra fence inside the compiler when needed.
 
-The implementation of ``warn_old_scoping`` uses a similar trick, and
-some simple analyses.
+The implementation of ``warn_old_scoping`` is a little harder, but
+uses a similar trick, and some simple analyses.
 
 Eventually we'll want to start tearing out path factoring and taking
 advantage of the new simpler rules, which will be more involved but
