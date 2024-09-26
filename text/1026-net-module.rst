@@ -5,9 +5,9 @@
     Created: 2024-08-14
     Authors: Scott Trinh <scott@edgedb.com>
 
-=============================
-RFC: EdgeDB Networking Module
-=============================
+==================================
+RFC 1026: EdgeDB Networking Module
+==================================
 
 This RFC outlines the addition of a networking module to EdgeDB’s
 standard library, providing functionality for making HTTP requests and
