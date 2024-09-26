@@ -255,6 +255,9 @@ Some factoring/scoping related issues
 Specification
 =============
 
+Primary changes
+---------------
+
 Path factoring will be removed::
 
     db> select User.first_name ++ ' ' ++ User.last_name;
@@ -296,57 +299,27 @@ instead (if we wanted, we could drop it and require doing that)::
     }
 
 
+For loop enhancement
+--------------------
+
+``FOR`` loops where the iterator expression is a link will be upgraded
+to allow access to link properties of the link. For example, you will
+be able to do::
+
+    WITH
+        X := schema::Operator
+    SELECT
+        X { name }
+    FILTER (
+        FOR ann in X.annotations
+        SELECT ann.name = "std::identifier" AND ann@value = 'minus'
+    )
+
+Previously, the best way to express such queries was by taking advance
+to path factoring, and FOR loops weren't able to handle them.
 
 Remaining problems
 ------------------
-
-Link properties
-###############
-
-The current area where using link properties is probably the most
-idiomatic way to do something is when doing operations on link
-properties. Consider this query which returns every
-``schema::Operator`` with an annotation named ``std::identifier`` with
-the value ``'minus'``::
-
-    WITH
-        X := schema::Operator
-    SELECT
-        X { name }
-    FILTER
-        X.annotations.name = "std::identifier" AND X.annotations@value = 'minus'
-
-This doesn't work anymore if we get rid of path factoring.
-
-Converting it to use a ``FOR`` loop in the ``FILTER`` doesn't work
-either, because the variable bound in the ``FOR`` loop won't have
-access to the link properties.
-
-This works::
-
-    WITH
-        X := schema::Operator
-    SELECT
-        X {
-            name,
-            matches := (X.annotations { b := (X.annotations.name = "std::identifier" AND X.annotations@value = 'minus') }).b,
-        }
-    FILTER
-        .matches
-
-but is kind of awful, and lots of sensible variations (like inlining
-the definition of matches into the ``FILTER``) are currently buggy.
-
-We need to fix those bugs either way, but I think we should also
-upgrade ``FOR`` to work in this case::
-
-    WITH
-        X := schema::Operator
-    SELECT
-        X { name }
-    FILTER
-        (FOR ann in X.annotations UNION (ann.name = "std::identifier" AND ann@value = 'minus'))
-
 
 ORDER BY
 ########
