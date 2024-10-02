@@ -378,9 +378,11 @@ Overview
 EdgeDB 6.0 allow opting in to the new behavior, while still supporting
 the old behavior fully.
 
-We will also provide an opt-in mode that produces an error (or a
-warning, if we have time to build a warning system) when we detect
-that a query might change its behavior under the new semantics.
+We will also provide an opt-in mode that produces a warning when we
+detect that a query might change its behavior under the new semantics.
+(Warnings will be added to support this. Clients will allow callbacks
+to be configured for responding to warnings, with the default being to
+log them.)
 
 EdgeDB 7.0 will drop support for path factoring.  EdgeDB 6.0 will be
 an LTS release, so users will have a fair amount of time to get their
@@ -400,7 +402,7 @@ value if the configuration value is not set. The configuration setting
 will allow overriding the presence or absence of the feature.
 
 We will do the same with a ``warn_old_scoping`` flag that will produce
-an error when path factoring is depended upon. If both
+a warning when path factoring is depended upon. If both
 ``simple_scoping`` and ``warn_old_scoping`` are active, then only
 ``simple_scoping`` will apply.
 
@@ -458,8 +460,9 @@ Recommended upgrade plan for users
 ==================================
 
 The safest approach is to first get your entire schema and application
-working with ``warn_old_scoping``. Once that is done, it should be
-safe to switch to ``simple_scoping`` without changes in behavior.
+working with ``warn_old_scoping`` without producing any warnings. Once
+that is done, it should be safe to switch to ``simple_scoping``
+without changes in behavior.
 
 If you are very confident in your test coverage, though, you can try
 skipping dealing with ``warn_old_scoping`` and go straight to
@@ -470,8 +473,9 @@ think is probably good::
 
 1. Run ``CONFIGURE CURRENT DATABASE SET warn_old_scoping := true``
 2. Try running all of your queries against the database.
-3. Fix any that fail.
-4. Adjust your schema until setting ``using future warn_old_scoping`` works.
+3. Fix any that produce warnings..
+4. Adjust your schema until setting ``using future warn_old_scoping`` works
+   without producing warnings.
 
 If you wish to proceed incrementally with steps 2 and 3, you can
 configure ``warn_old_scoping`` in your clients, having it enabled for
