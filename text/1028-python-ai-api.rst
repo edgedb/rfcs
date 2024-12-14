@@ -55,6 +55,28 @@ Implementation
 Extension AI Binding
 --------------------
 
+The proposed API splits search functionality from the RAG so it can be
+used on its own without having to carry around the LLM configuration.
+
+Apart from the vector search method that uses `ext::ai` functionality,
+it also provides ways to search using `fts` and `pg_trgm`. While not
+directly tied to AI, those could be (and commonly are) used alongside
+vector search in RAG applications. The API also has a hybrid search
+method, which would implement a combination of vector and full-text
+search.
+
+All of the search methods can be called with the same set of parameters,
+all of which make up the EdgeQL query used to retrieve the results.
+Supplying query configuration in this way makes it easier to control
+the search behavior. It also offers a way to do it that may be easier
+for a new user to digest than a raw EdgeQL query.
+
+The last set of methods provides a way to quickly generate an embedding
+for a string using whatever model is being used in the database at the
+moment. Nothing incredibly advanced here, it's just handy when building
+an application,
+
+
 .. code-block:: python
     class GelAI:
         """
@@ -179,6 +201,15 @@ Extension AI Binding
             pass
 
 
+Following the RAG architecture of an LLM being tacked onto a search engine,
+this API proposes to split RAG functionality into a separate subclass.
+
+Its role is to hold the search setup, as reflected in the constructor,
+as well as to provide different ways to interact with an LLM. That
+includes a direct passthrough, because, just as before, this is a handy
+thing to have.
+
+.. code-block:: python
     class GelRAG(GelAI):
         """
         This class stores a specific search configuration, a system prompt, and offers a way to access an LLM
@@ -286,6 +317,13 @@ Extension AI Binding
 Extension Vectorstore Binding
 ----------------------------
 
+The design of `GelVectorstore` follows that of the LangChain-LlamaIndex
+integration. For it to be able to interact with embedding models (outside
+of Gel) this binding also provides a simple model interface.
+
+No assumptons are made about the raw content, meaning the user might wrap
+CLIP into the interface and use it to generate and store image embeddings.
+
 .. code-block:: python
 
     class BaseEmbeddingModel:
@@ -376,28 +414,45 @@ Extension Vectorstore Binding
             pass
 
 Modifications to the Gel Server
-------------------------------
+-------------------------------
+
+To match the Python package changes, this RFC proposes the following
+set of endpoints on the server side:
 
 - ``semantic_search``
-    - ``text_query: str``: Text to embed and perform vector search by.
-    - ``edgeql_query: str``: EdgeQL expression that resolves into type
-      who's index will be searched.
-    - ``filter``, ``group``: expressions to filter and group the results
-    - ``limit``, ``offset``: pagination for search results
-    - ``shape``: custom shape to apply to search results. By default
-      contains a splat, a similarity score and embedding computed fields.
 - ``fulltext_search``
 - ``trigram_search``
 - ``hybrid_search``
 
+Parameters for of the endpoints in the search group would mirror those
+from the Python methods:
+
+- ``text_query``
+- ``edgeql_query``
+- ``shape``
+- ``filter``
+- ``group``
+- ``limit``
+- ``offset``
+
+The following endpoints provide convenient access to external models
+configured within the database:
+
 - ``generate_embedding``
 - ``generate_embedding_like``
-- ``generate_llm_response``
+- ``generate_llm_chat_completion``
+
+This endpoint provides access to the end-to-end RAG workflow similar
+to the current interface:
 
 - ``query_rag``
 
-- ``embedding_model_like``
-- ``llm``
+Finally, these two endpoints offer a quick way to query settings for
+models that are being used under the hood:
+
+- ``get_embedding_model_config``
+- ``get_llm_config``
+
 
 Backwards Compatibility
 =======================
