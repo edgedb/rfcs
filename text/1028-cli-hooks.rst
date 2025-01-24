@@ -38,7 +38,7 @@ option, the command should not trigger any project hooks even if the instance
 is linked to a project. Only commands that omit the instance and use the
 current project to determine the target instance are going to trigger hooks.
 
-The hooks will be described in the ``gel.toml`` file in the
+The hooks will be described in the ``gel.toml`` project manifest file in the
 ``[hooks]`` table. We define ``migration.apply.after``,
 ``project.init.after``, ``branch.wipe.after``, and ``branch.switch.after``
 hook keys. The values for them are arrays of strings, where each string is
