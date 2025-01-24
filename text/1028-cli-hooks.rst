@@ -39,7 +39,7 @@ is linked to a project. Only commands that omit the instance and use the
 current project to determine the target instance are going to trigger hooks.
 
 The hooks will be described in the ``gel.toml`` file in the
-``[project-hooks]`` table. We define ``migration.apply.after``,
+``[hooks]`` table. We define ``migration.apply.after``,
 ``project.init.after``, ``branch.wipe.after``, and ``branch.switch.after``
 hook keys. The values for them are arrays of strings, where each string is
 going to be executed as a shell command. The naming scheme is intended to
@@ -123,10 +123,10 @@ for these commands as well.
 Design Considerations
 =====================
 
-It makes sense to follow a convention of filling out the ``[project-hooks]``
+It makes sense to follow a convention of filling out the ``[hooks]``
 table in order of execution priority from highest to lowest::
 
-    [project-hooks]
+    [hooks]
     project.init.after=[
       "setup_dsn.sh"
     ]
