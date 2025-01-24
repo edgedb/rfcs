@@ -74,13 +74,12 @@ scenarios when this kind of hook might be needed:
    why this hook does not simply run all the same scripts as the
    ``project.init.after``.
 
-3) After any ``gel branch`` command that changes the current branch
-   (``switch``, ``rebase``, ``merge``) the ``branch.switch.after`` hook will
-   be executed. This is a good place for updating any configuration scripts
-   (e.g. updating Postgres connection sting). This hook can also be used to
-   keep the source code branch in sync with the database branch. This is
-   probably not a good hook for running data fixtures as the data in branches
-   in unaltered between switches.
+3) After ``gel branch switch`` command that changes the current branch the
+   ``branch.switch.after`` hook will be executed. This is a good place for
+   updating any configuration scripts (e.g. updating Postgres connection
+   string). This hook can also be used to keep the source code branch in sync
+   with the database branch. This is probably not a good hook for running
+   data fixtures as the data in branches in unaltered between switches.
 
 If ``project init`` runs migrations, the ``project.init.after`` hook is
 triggered *before* the ``migration.apply.after`` hook. The motivation is that
