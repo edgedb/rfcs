@@ -38,21 +38,23 @@ option, the command should not trigger any project hooks even if the instance
 is linked to a project. Only commands that omit the instance and use the
 current project to determine the target instance are going to trigger hooks.
 
-The hooks will be described in the ``gel.toml`` file in the
-``[project-hooks]`` table. We define ``migration.apply.after``,
+The hooks will be described in the ``gel.toml`` project manifest file in the
+``[hooks]`` table. We define ``migration.apply.after``,
 ``project.init.after``, ``branch.wipe.after``, and ``branch.switch.after``
-hook keys. The values for them are arrays of strings, where each string is
-going to be executed as a shell command. The naming scheme is intended to
-mimic the command structure to clearly indicate which commands will trigger
-the hooks. Current RFC only introduces hooks to be executed after a given
-command, but the naming scheme supports future "before" hooks as well.
+hook keys. Their values are strings that are going to be executed as shell
+commands.
 
-The scripts are executed in the order they appear in the array, sequentially.
-So if you have multiple steps that needs to be executed in a certain order,
-you can put the hook commands in the same order you would have executed them
-in the shell.
+The naming scheme is intended to mimic the command structure to clearly
+indicate which commands will trigger the hooks. Current RFC only introduces
+hooks to be executed after a given command, but the naming scheme supports
+future "before" hooks as well.
 
 All hooks will use the project root directory as the execution directory.
+Hooks are executed using ``/bin/sh`` on all platforms. On Windows, the hooks
+are always executed in WSL.
+
+If the shell exits with a non-zero status code, the CLI will exit immediately,
+without executing any subsequent hooks or CLI actions.
 
 
 Configuration Hooks
@@ -74,13 +76,12 @@ scenarios when this kind of hook might be needed:
    why this hook does not simply run all the same scripts as the
    ``project.init.after``.
 
-3) After any ``gel branch`` command that changes the current branch
-   (``switch``, ``rebase``, ``merge``) the ``branch.switch.after`` hook will
-   be executed. This is a good place for updating any configuration scripts
-   (e.g. updating Postgres connection sting). This hook can also be used to
-   keep the source code branch in sync with the database branch. This is
-   probably not a good hook for running data fixtures as the data in branches
-   in unaltered between switches.
+3) After ``gel branch switch`` command that changes the current branch the
+   ``branch.switch.after`` hook will be executed. This is a good place for
+   updating any configuration scripts (e.g. updating Postgres connection
+   string). This hook can also be used to keep the source code branch in sync
+   with the database branch. This is probably not a good hook for running
+   data fixtures as the data in branches in unaltered between switches.
 
 If ``project init`` runs migrations, the ``project.init.after`` hook is
 triggered *before* the ``migration.apply.after`` hook. The motivation is that
@@ -124,10 +125,10 @@ for these commands as well.
 Design Considerations
 =====================
 
-It makes sense to follow a convention of filling out the ``[project-hooks]``
+It makes sense to follow a convention of filling out the ``[hooks]``
 table in order of execution priority from highest to lowest::
 
-    [project-hooks]
+    [hooks]
     project.init.after=[
       "setup_dsn.sh"
     ]
