@@ -85,8 +85,8 @@ database states that correspond to the schema and avoiding accidental
 mismatches in migrations.
 
 
-Project and CLI Integration
----------------------------
+Branch Configuration
+--------------------
 
 Currently the rest of our tools rely on ``$CONFIG/credentails`` to find
 default credential settings for projects. That includes the "database" (which
@@ -97,7 +97,42 @@ sure we give some time for the rest of the clients that use the
 "database", but not both. Once the deprecation period is over we can force the
 ``$CONFIG/credentails`` files to be converted to use "branch" exclusively.
 
+We also have optional project-specific configuration **stash** at
+``$CONFIG/projects/$PROJECT_HASH``. The ``$PROJECT_HASH`` is composed of the
+``<project_name>-<sha1 project path>`` so as to avoid collisions for same-name
+projects.
+
+The **stash** contains the following files: ``instance-name``,
+``cloud_profile``, ``project-path``, ``database``. Each file contains the
+plain text value of the corresponding parameter. The ``database`` can override
+the branch specified in the instance credentials. The ``database`` name should
+be valid for backwards compatibility, but going forward we should use
+``branch`` file for the purpose of overriding the project current branch.
+
+
+Instance Branches
+-----------------
+
+Any ``gel`` branch command that specifies the instance directly via ``-I``
+must operate using the insatnce-specific credentials and must ignore project
+credentials. If it modifies the current branch, such modifications must be
+recorded in the instance credentials.
+
+
+Project Branches
+----------------
+
 A new project should ask the user for the branch name defaulting to "main".
+
+Any ``gel`` branch command that omits the instance and relies on the project
+settings to determine the instance must never modify the current branch in the
+instance credentials and instead must only operate on the project-specific
+current branch. It must keep track of the current branch using the ``branch``
+file in the project settings (or ``database`` file if it already exists).
+
+
+Branches and CLI Integration
+----------------------------
 
 The ``database`` CLI commands should be deprecated and new ``branch`` commands
 introduced instead.
@@ -105,10 +140,9 @@ introduced instead.
 ``edgedb branch create`` command options:
 
 * It must have the ``--from <oldname>`` option. If this option is omitted the
-  current branch specified in the ``$CONFIG/credentails`` is used as the
-  "from" branch. After the branch is created, the ``$CONFIG/credentails``
-  file corresponding to the project is updated to use the new branch as the
-  connection default.
+  current branch is used as the "from" branch. After the branch is created,
+  the current [instance or project] branch is updated to use the new branch as
+  the connection default.
 
 * It must have the ``--empty`` option. If specified, this is equivalent to
   running ``create empty branch <newname>`` DDL command.
@@ -122,21 +156,26 @@ The old ``wipe`` subcommand may still be relevant for resetting a particular
 branch.
 
 There must be a new ``switch`` sub-command that allows changing the default
-branch to connect to by updating the project ``$CONFIG/credentails``. We can
-also offer a post-checkout git hook to update the branch in
-``$CONFIG/credentails`` when switching git branches. The mapping between git
-and EdgeDB branches can be maintained in the
-``$CONFIG/projects/{project}/branches.toml`` file as well. When switching
-EdgeDB branches this way we should print a message with the new branch name.
-By default, if a git branch is not explicitly mapped to any branch in
-``branches.toml`` we should use the ``main`` branch. The user can then call
-``edgedb branch switch`` to change the git/EdgeDB branch association.
+branch to connect to by updating the instance or project current branch.
+
+
+Project Branch Hooks
+--------------------
+
+We can also offer a post-checkout git hook to update the project branch when
+switching git branches. The mapping between git and EdgeDB branches can be
+maintained in the ``$CONFIG/projects/$PROJECT_HASH/branches.toml`` file as
+well. When switching EdgeDB branches this way we should print a message with
+the new branch name. By default, if a git branch is not explicitly mapped to
+any branch in ``branches.toml`` we should use the ``main`` branch. The user
+can then call ``edgedb branch switch`` to change the git/EdgeDB branch
+association.
 
 There must be a new ``edgedb branch rename <oldname> <newname>`` command in
 order to be able to rename branches.
 
 The branch name must appear in ``edgedb project info`` output (both regular
-and ``--json`` vesrion). We should also add ``edgedb branch info`` command to
+and ``--json`` version). We should also add ``edgedb branch info`` command to
 show just the current branch name (the command should accept an instance name
 or use the project default).
 
@@ -266,6 +305,11 @@ We decided that keeping the branch information in the local
 compatibility with the existing bindings. This will provide an opportunity to
 gradually deprecate the old "database" field in favor of "branch" field over
 some time and let the bindings be updated.
+
+Project tools should keep current branch information in the
+``$CONFIG/projects/$PROJECT_HASH/branch`` (or ``database``) file. This
+mechanism is already used for cloud instances and should be extended for all
+projects regardless of whether they are linked to a local or cloud instance.
 
 The in the first step of this transition CLI branch tools should still use the
 "database" field (when creating the new credentials), but also accept a
