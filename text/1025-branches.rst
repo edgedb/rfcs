@@ -116,14 +116,17 @@ introduced instead.
 * It should have the ``--copy-data`` option. By default a new branch copies
   schema only.
 
+* It should not switch the active branch to the newly created one.
+
 The old ``drop`` subcommand works pretty much same as before.
 
 The old ``wipe`` subcommand may still be relevant for resetting a particular
 branch.
 
 There must be a new ``switch`` sub-command that allows changing the default
-branch to connect to by updating the project ``$CONFIG/credentails``. We can
-also offer a post-checkout git hook to update the branch in
+branch to connect to by updating the project ``$CONFIG/credentails``. There 
+should be a ``--create`` flag to create the branch if it doesn't exist We
+can also offer a post-checkout git hook to update the branch in
 ``$CONFIG/credentails`` when switching git branches. The mapping between git
 and EdgeDB branches can be maintained in the
 ``$CONFIG/projects/{project}/branches.toml`` file as well. When switching
