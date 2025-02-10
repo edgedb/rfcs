@@ -184,9 +184,12 @@ now.
 The output of the scripts will then appear in the same TTY as the ``gel
 watch`` command.
 
-We may want to setup a debouncer so that we can delay before triggering the
-scripts on a sequence of changes. This is mostly to reduce unnecessary
-multiple triggers for the same watched entity.
+Multiple consecutive file system change events will be debounced into a single
+event. For example, given scripts ``src/**`` and ``*.py`` and writes to
+``src/a.py``, ``src/b.py`` and ``src/c.rs``, both scripts will trigger exactly
+once. To achive this, ``gel watch``` will wait for a small amount of time
+(100ms) after receiving first event before executing matching scripts. This is
+mostly to reduce unnecessary multiple triggers for the same watched entity.
 
 Another consequence of executing triggered scripts in the background is that
 sometimes the changes are invalid in some way and the script will fail. This
