@@ -282,6 +282,9 @@ feature. This can be specified in the general ``[watch]`` section as
 The process launched by a script could have additional environmental variables
 such as `GEL_HOOK_NAME` with value, for example, `branch.wipe.before`.
 
+Watch could have a `--retry-sec` flag, which would retry running a script
+if it had exited with a non-zero status code.
+
 Rejected Ideas
 ==============
 
