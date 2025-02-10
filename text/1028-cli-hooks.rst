@@ -279,6 +279,9 @@ survives closing of terminals or reboots) as an additional convenience
 feature. This can be specified in the general ``[watch]`` section as
 ``logfile="<path-to-logfile>"``.
 
+The process launched by a script could have additional environmental variables
+such as `GEL_HOOK_NAME` with value, for example, `branch.wipe.before`.
+
 Rejected Ideas
 ==============
 
