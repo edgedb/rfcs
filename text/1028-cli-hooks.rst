@@ -164,19 +164,29 @@ of response is possible: trigger when a change to the watched entity is
 detected.
 
 The watch configuration will be described in the ``gel.toml`` project manifest
-file in the ``[watch]`` table. We will introduce a ``[watch.files]`` sub-table
+file in the ``[watch]`` table. We will introduce ``[watch.<name>]`` sub-tables
 for watching file system changes and triggering scripts.
 
-The general structure of watch tables is going to use the key (potentially
-quoted) to specify *what is being watched* and the corresponding value to
-specify the script that will be triggered by changes.
+Each ``[watch.<name>]`` sub-table can have any arbitrary ``<name>`` and
+represents a single watch trigger. Multiple watch triggers can be specified as
+long as they have their own unique ``<name>``.
+
+Each watch trigger should have the following structure:
+
+* ``glob = "<path-string>"`` - specify file(s) being watched; required
+* ``script = "<command>"`` - command to be executed by the shell; required
+
+We may add more configuration options in the future to the watch triggers to
+expand functionality.
 
 The ``gel watch`` command (without needing further options) would then be used
 to start the watch process and monitor whatever is specified in the
 ``gel.toml``. By default ``gel watch`` will only watch the files specified in
-the ``gel.toml`` config and execute the trigger scripts. Running ``gel watch
---migrate`` will additionally monitor schema changes and perform real-time
-migrations.
+the ``gel.toml`` config and execute the trigger scripts.
+
+Running ``gel watch --migrate`` will additionally monitor schema changes and
+perform real-time migrations. The ``--migrate`` option also will automatically
+retry applying migrations if it encounters network errors.
 
 This is a backwards incompatible change compared to how ``edgedb watch`` operates
 now.
@@ -184,12 +194,53 @@ now.
 The output of the scripts will then appear in the same TTY as the ``gel
 watch`` command.
 
-Multiple consecutive file system change events will be debounced into a single
-event. For example, given scripts ``src/**`` and ``*.py`` and writes to
-``src/a.py``, ``src/b.py`` and ``src/c.rs``, both scripts will trigger exactly
-once. To achive this, ``gel watch``` will wait for a small amount of time
-(100ms) after receiving first event before executing matching scripts. This is
-mostly to reduce unnecessary multiple triggers for the same watched entity.
+
+Trigger Execution
+-----------------
+
+Due to the nature of monitoring changes, we cannot guarantee any particular
+order in which the watch scripts will be executed when multiple changes occur
+at once. This is independent of the source of multiple triggers: whether it is
+due to multiple files being updated or multiple watch rules matching the same
+file. The scripts are effectively triggered asynchronously and the exact order
+is an implementation detail that should not be relied upon.
+
+It is possible to trigger the same watch target multiple times in a row either
+by multiple consecutive update events to the same file or by virtue of the
+watch trigger monitoring several files which have been modified. We want to
+reduce unnecessary repeated execution of the same trigger script by debouncing
+multiple file system change events into a single trigger event.
+
+To achieve this ``gel watch`` should keep an event queue for triggered
+scripts. Any time a new trigger change is detected, the event queue is
+searched for the same trigger event. If it is found, the stale event is
+removed from the queue. The *new* event is added to the end of the queue with
+the current timestamp. This means that the events in the queue appear in
+chronological order. The head of the queue is checked periodically by ``gel
+watch`` and if the timestamp of the trigger event is more than 100ms old, the
+event is *popped* from the queue and the corresponding script is executed.
+This guarantees that no more than one copy of any trigger event is ever
+present in the queue at the same time. It also guarantees that eventually all
+triggered events will execute as long as updates triggering them actually
+stop.
+
+Another consideration affecting debouncing is whether the same trigger script
+is already currently running. It means that ``gel watch`` must keep track of
+all the currently running scripts so that when a new script from the trigger
+queue becomes eligible to run an additional check can be made. If there is
+already a copy of the same trigger event script running, the newly eligible
+copy is auto-debounced (by 100ms) and moved to the end of the trigger queue.
+This ensured that only one copy of any trigger script is actually running at
+the same time, further reducing unnecessary churn.
+
+In general, it makes sense to execute triggered scripts in parallel. This
+reduces the latency in case some scripts are slow-running. However, sometimes
+(e.g. when scripts overlap in which files they change) it is desirable that no
+two scripts are running at the same time within the project. We can add
+``--serial`` flag to ``gel watch`` command in order force trigger scripts to
+be executed one at a time. Note that if there are long-running scripts the may
+be a significant delay between the triggering event and the actual script
+execution if ``--serial`` mode is enabled.
 
 Another consequence of executing triggered scripts in the background is that
 sometimes the changes are invalid in some way and the script will fail. This
@@ -197,24 +248,20 @@ is considered part of normal operation (e.g. syntax error in a saved query
 file) and the scripts should be such that failure does not create some
 non-recoverable state.
 
-Due to the nature of monitoring changes, we cannot guarantee any particular
-order in which the watch scripts will be triggered when multiple changes occur
-at once. This is independent of the source of multiple triggers: whether it is
-due to multiple files being updated or multiple watch rules matching the same
-file. The scripts are effectively triggered asynchronously and the exact order
-is an implementation detail that should not be relied upon.
-
 
 Files
 -----
 
-The ``[watch.files]`` table should contain keys that are interpreted as file
-system paths. They can also contain common glob patterns (such as provided by
-`this library <https://docs.rs/globset/latest/globset/#syntax>`_).
+The ``[watch.<name>]`` sub-table should contain at least ``glob`` and
+``script`` keys. The ``glob`` value is interpreted as a file system path. It
+can also contain common glob patterns (such as provided by `this library
+<https://docs.rs/globset/latest/globset/#syntax>`_).
 
-The paths should be valid in the underlying file system (therefore using ``/``
-for Linux and ``\`` for Windows, etc.). The relative file paths are assumed to
-start at the project root.
+The paths should always use ``/`` (*nix-style) as path separators. This
+uniformity ensures that the ``gel.toml`` config file is not system-dependent
+(at least as long as it relies on relative paths). It is the job of the CLI
+tools to correctly convert *nix paths into Windows paths internally when
+necessary. The relative file paths are assumed to start at the project root.
 
 The values corresponding to the keys are strings that are going to be executed
 as shell commands, much like for the hooks.
@@ -226,7 +273,8 @@ the scripts are always executed in WSL.
 An example of this configuration::
 
     [watch.files]
-    "queries/*.edgeql"="npx @edgedb/generate queries"
+    glob = "queries/*.edgeql"
+    script = "npx @edgedb/generate queries"
 
 Only files in the project directories can be watched. If the ``gel.toml``
 config specifies files outside of the project to be watched it should cause an
@@ -273,9 +321,14 @@ Future Possibilities
 
 The debouncer delay can be configurable in the ``[watch]`` section as
 ``deboucer-delay=<integer>`` with the value being the delay in milliseconds.
+This means that it's no longer sufficient to check the head of the trigger
+queue to find the script to be executed. The entire queue must be checked and
+all triggers that are older than their delay time must be executed.
 
 We can introduce a ``[watch.gel-config]`` sub-table for monitoring changes to
-the various database config values and responding to them.
+the various database config values and responding to them. This would make
+``glob`` an optional key and add ``gel-config = <string>`` as a way to specify
+which config variable we are watching.
 
 We can set up a logfile for watch scripts (because that creates a record which
 survives closing of terminals or reboots) as an additional convenience
@@ -283,10 +336,29 @@ feature. This can be specified in the general ``[watch]`` section as
 ``logfile="<path-to-logfile>"``.
 
 The process launched by a script could have additional environmental variables
-such as `GEL_HOOK_NAME` with value, for example, `branch.wipe.before`.
+such as ``GEL_HOOK_NAME`` with value, for example, ``branch.wipe.before``.
 
-Watch could have a `--retry-sec` flag, which would retry running a script
-if it had exited with a non-zero status code.
+We can add the following optional keys to the ``[watch.<name>]`` trigger sub-tables:
+
+* ``retry-delay = <integer>`` - retry delay in milliseconds
+* ``retry-attempts = <integer>`` - number of retry attempts
+
+If the ``retry-delay`` key is absent we will use a delay of 5 seconds before retrying.
+
+If the ``retry-attempts`` key is absent we will assume that there is no limit to retry attempts and the script must be retried until it exits with a success status code.
+
+The presence of *at least one* the above keys would indicate that the watch
+script must be retried if it had exited with a non-zero status code. In case
+both of the keys are missing, no retry attempt should be made and the keys'
+"default" values should be ignored.
+
+An example of a valid retry config::
+
+    [watch.remote_data]
+    glob = ".env"
+    script = "./sync_with_remote.sh"
+    retry-delay = "5s"
+
 
 Rejected Ideas
 ==============
@@ -334,6 +406,41 @@ correct context for the next triggered step. For example, the
 ``branch.switch.before`` hook can setup a flag that tells
 ``schema.update.before`` to skip all validation checks since it's about to be
 replaced entirely with whatever is in the new branch.
+
+All the paths appearing in ``gel.toml`` should be using *nix-style path
+separator ``/`` instead of allowing both *nix and Windows style paths. This is
+to ensure that ``gel.toml`` remains compatible across different systems since
+it's expected to be committed as part of a repository.
+
+We no longer want to use a minimalistic "glob=script" setup for files being
+watched. This format is hard to extend in the future if any additional config
+options are deemed necessary. Instead we will use sub-tables
+``[watch.<name>]`` for each watch trigger, making it easier to add custom
+options on a per-trigger basis. The simplest watch example is still quite
+short and arguably more easier to understand::
+
+    [watch.files]
+    glob = "queries/*.edgeql"
+    script = "npx @edgedb/generate queries"
+
+Watch should not have a ``--retry-sec`` flag for controlling retry behavior
+globally. Instead we should configure retry policy on a per-trigger basis in
+the ``gel.toml``. This is due to the fact that auto-retry only makes sense for
+non-deterministic failures such as network failures, but results only in
+unnecessary churn for deterministic scripts such as compilation.
+
+We don't suspend watching while executing scripts. If we suspend watching,
+then the implementation detail of the order of triggered scripts becomes
+extremely important. E.g. if I "save all changes" what happens? Do all of them
+get detected on the same watch tick and multiple watch targets will be
+triggered? Do some of the changes get detected first and then block other
+changes from being watched? Would I get slightly different behavior from using
+my key shortcuts to switch tabs and save 2-3 files in quick succession?
+
+If we never suspend watching, then the results for the above are all the same
+- all changes will be eventually noticed and all triggers will fire. If we
+suspend watching, then the actual trigger pattern will be sensitive to how
+exactly files were saved.
 
 
 Backwards Compatibility
